@@ -1,0 +1,31 @@
+# Node Modules
+node_modules/
+backend/node_modules/
+
+
+# Environment Variables
+.env
+backend/.env
+
+
+# Hardhat Artifacts
+artifacts/
+cache/
+typechain-types/
+
+
+# Build Output
+dist/
+bundle/
+types/
+coverage/
+
+
+# Uploads / Temporary Files
+uploads/
+tmp/
+
+
+# OS Files
+.DS_Store
+Thumbs.db
