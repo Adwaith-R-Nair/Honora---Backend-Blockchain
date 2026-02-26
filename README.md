@@ -58,9 +58,31 @@ EMS Backend and Blockchain/
 
 ---
 
-# 🚀 Setup Instructions (For Teammates)
+# ⚙️ Complete Installation Guide (Step-by-Step)
 
-## 1️⃣ Clone Repository
+This guide assumes Windows/macOS/Linux with Node.js installed.
+
+---
+
+## 🔹 0️⃣ Prerequisites
+
+Install the following:
+
+- Node.js **v22 LTS or later**
+- npm (comes with Node)
+- Git
+
+Check versions:
+
+```bash
+node -v
+npm -v
+git --version
+```
+
+---
+
+## 🔹 1️⃣ Clone Repository
 
 ```bash
 git clone https://github.com/Adwaith-R-Nair/Honora---Backend-Blockchain.git
@@ -69,25 +91,78 @@ cd Honora---Backend-Blockchain
 
 ---
 
-## 2️⃣ Install Root Dependencies (Hardhat)
+# 🧱 HARDHAT + SMART CONTRACT SETUP
+
+---
+
+## 🔹 2️⃣ Install Hardhat Dependencies (Root Folder)
+
+From the root folder:
 
 ```bash
 npm install
 ```
 
+This installs:
+
+- hardhat
+- typescript
+- @nomicfoundation/hardhat-ethers
+- ethers v6
+- all contract dependencies
+
 ---
 
-## 3️⃣ Install Backend Dependencies
+## 🔹 3️⃣ Compile Smart Contracts
+
+```bash
+npx hardhat compile
+```
+
+This generates:
+
+- artifacts/
+- cache/
+
+---
+
+# 🖥 BACKEND SETUP
+
+---
+
+## 🔹 4️⃣ Install Backend Dependencies
+
+Move into backend folder:
 
 ```bash
 cd backend
 npm install
+```
+
+This installs:
+
+- express
+- multer
+- axios
+- ethers
+- dotenv
+- form-data
+- crypto
+- cors
+
+Then return to root:
+
+```bash
 cd ..
 ```
 
 ---
 
-## 4️⃣ Setup Environment Variables
+# 🔐 ENVIRONMENT CONFIGURATION
+
+---
+
+## 🔹 5️⃣ Create .env File
 
 Inside:
 
@@ -98,45 +173,61 @@ backend/.env
 Add:
 
 ```
-PINATA_JWT=your_pinata_jwt
-CONTRACT_ADDRESS=contract_address_after_deployment
+PINATA_JWT=your_pinata_jwt_here
+CONTRACT_ADDRESS=will_be_added_after_deployment
 ```
 
-⚠️ Do NOT push `.env` to GitHub.
+⚠️ Never push `.env` to GitHub.
 
 ---
 
-# 🧪 Running The Project Locally
+# 🚀 RUNNING THE PROJECT
 
-You will need 3 terminals.
+You need **3 terminals**.
 
 ---
 
-## Terminal 1 — Start Local Blockchain
+## 🟢 Terminal 1 – Start Local Blockchain
 
 ```bash
 npx hardhat node
 ```
 
+This starts local blockchain at:
+
+```
+http://127.0.0.1:8545
+```
+
 ---
 
-## Terminal 2 — Deploy Smart Contract
+## 🟢 Terminal 2 – Deploy Smart Contract
 
 ```bash
 npx hardhat run scripts/deploy.ts --network localhost
 ```
 
-Copy the deployed contract address and paste it into:
+After deployment:
+
+Copy the contract address printed.
+
+Update:
 
 ```
 backend/.env
+```
+
+Add:
+
+```
+CONTRACT_ADDRESS=your_new_contract_address
 ```
 
 Restart backend after updating.
 
 ---
 
-## Terminal 3 — Start Backend
+## 🟢 Terminal 3 – Start Backend Server
 
 ```bash
 cd backend
@@ -209,14 +300,6 @@ http://localhost:5000/api/evidence/upload
 
 ---
 
-# 👨‍💻 Built By
-
-Adwaith R Nair  
-KTU BTech CSE  
-Honora Project – Mini Project
-
----
-
 # ⚠️ Important Notes
 
 - Local blockchain resets when `hardhat node` restarts
@@ -225,7 +308,7 @@ Honora Project – Mini Project
 
 ---
 
-# 📌 Tech Stack
+# 📌 Tech Stacks
 
 Solidity  
 Hardhat v3  
