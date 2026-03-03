@@ -49,8 +49,3 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 });
 
 export default router;
-
-const contract = await ethers.getContractAt(
-  "EvidenceRegistry",
-  "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-)
