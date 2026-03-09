@@ -1,32 +1,59 @@
-import hre from "hardhat";
-import { ethers } from "ethers";
+import { network } from "hardhat";
+import fs from "fs";
+import path from "path";
+
+// ── Hardhat v3: ethers comes from network.connect(), not from "hardhat" directly
+const { ethers, networkName } = await network.connect();
 
 async function main() {
-  // Connect to Hardhat local node
-  const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+  // ── Network info ─────────────────────────────────────────────────────────────
+  const { chainId } = await ethers.provider.getNetwork();
+  console.log(`\n🌐 Network   : ${networkName}`);
+  console.log(`🔗 Chain ID  : ${chainId}`);
 
-  // Get first signer (Account #0)
-  const signer = await provider.getSigner(0);
+  // ── Signer ───────────────────────────────────────────────────────────────────
+  const [deployer] = await ethers.getSigners();
+  const balance = await ethers.provider.getBalance(deployer.address);
+  console.log(`\n👤 Deployer  : ${deployer.address}`);
+  console.log(`💰 Balance   : ${ethers.formatEther(balance)} ETH`);
 
-  // Read compiled contract artifact
-  const artifact = await hre.artifacts.readArtifact("EvidenceRegistry");
+  // ── Deploy ───────────────────────────────────────────────────────────────────
+  console.log("\n🚀 Deploying EvidenceRegistry...");
 
-  // Create contract factory
-  const factory = new ethers.ContractFactory(
-    artifact.abi,
-    artifact.bytecode,
-    signer
-  );
+  const contract = await ethers.deployContract("EvidenceRegistry");
 
-  // Deploy contract
-  const contract = await factory.deploy();
-
+  console.log("⏳ Waiting for deployment to confirm...");
   await contract.waitForDeployment();
 
-  console.log("EvidenceRegistry deployed to:", await contract.getAddress());
+  const contractAddress = await contract.getAddress();
+  console.log(`✅ Deployed to: ${contractAddress}`);
+
+  // ── Post-deployment sanity check ──────────────────────────────────────────────
+  const evidenceCount = await contract.evidenceCount();
+  const owner = await contract.owner();
+  const isAuthorized = await contract.isAuthorized(deployer.address);
+
+  console.log(`\n🔍 Sanity check:`);
+  console.log(`   owner              : ${owner}`);
+  console.log(`   evidenceCount      : ${evidenceCount}`);
+  console.log(`   deployer authorized: ${isAuthorized}`);
+
+  // ── Save deployment info ──────────────────────────────────────────────────────
+  const deploymentInfo = {
+    network: networkName,
+    chainId: chainId.toString(),
+    contractAddress,
+    deployer: deployer.address,
+    deployedAt: new Date().toISOString(),
+  };
+
+  const outputPath = path.resolve("deployment.json");
+  fs.writeFileSync(outputPath, JSON.stringify(deploymentInfo, null, 2));
+  console.log(`\n💾 Deployment info saved to: deployment.json`);
+  console.log(JSON.stringify(deploymentInfo, null, 2));
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error("\n❌ Deployment failed:", error);
   process.exitCode = 1;
 });

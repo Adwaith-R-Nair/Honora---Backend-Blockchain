@@ -26,6 +26,23 @@ uploads/
 tmp/
 
 
-# OS Files
+# OS Files  
 .DS_Store
 Thumbs.db
+
+# Deployment info (contains contract address, deployer — regenerate locally)
+deployment.json
+
+# Hardhat cache and local network files
+cache/
+.hardhat/
+
+# TypeScript build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# VS Code
+.vscode/
