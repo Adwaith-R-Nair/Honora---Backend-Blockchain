@@ -31,12 +31,12 @@ async function main() {
   // ── Post-deployment sanity check ──────────────────────────────────────────────
   const evidenceCount = await contract.evidenceCount();
   const owner = await contract.owner();
-  const isAuthorized = await contract.isAuthorized(deployer.address);
+  const deployerRole = await contract.getRole(deployer.address);
 
   console.log(`\n🔍 Sanity check:`);
   console.log(`   owner              : ${owner}`);
   console.log(`   evidenceCount      : ${evidenceCount}`);
-  console.log(`   deployer authorized: ${isAuthorized}`);
+  console.log(`   deployer role      : ${deployerRole}`);
 
   // ── Save deployment info ──────────────────────────────────────────────────────
   const deploymentInfo = {
