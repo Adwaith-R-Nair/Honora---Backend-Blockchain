@@ -3,8 +3,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { ENV } from "../config/env.js";
 
-// process.cwd() = backend/ when running npm run dev
-// go one level up to project root, then into artifacts
+// ── Load ABI from compiled artifact ──────────────────────────────────────────
 const artifactPath = resolve(
   process.cwd(),
   "../artifacts/contracts/EvidenceRegistry.sol/EvidenceRegistry.json"
@@ -12,7 +11,24 @@ const artifactPath = resolve(
 
 const artifact = JSON.parse(readFileSync(artifactPath, "utf-8"));
 
-// ── Provider + Signer (Account #1 — authorized backend signer) ───────────────
+// ── Role enum mirroring Solidity ──────────────────────────────────────────────
+export const RoleEnum: Record<string, number> = {
+  None: 0,
+  Police: 1,
+  Forensic: 2,
+  Lawyer: 3,
+  Judge: 4,
+};
+
+export const RoleNames: Record<number, string> = {
+  0: "None",
+  1: "Police",
+  2: "Forensic",
+  3: "Lawyer",
+  4: "Judge",
+};
+
+// ── Provider + Signer ─────────────────────────────────────────────────────────
 const provider = new ethers.JsonRpcProvider(ENV.RPC_URL);
 const signer = new ethers.Wallet(ENV.PRIVATE_KEY, provider);
 
@@ -23,7 +39,7 @@ const contract = new ethers.Contract(
   signer
 );
 
-// ── Types mirroring the Solidity structs ──────────────────────────────────────
+// ── Types mirroring Solidity structs ──────────────────────────────────────────
 export interface EvidenceRecord {
   evidenceId: bigint;
   caseId: bigint;
@@ -41,16 +57,20 @@ export interface CustodyRecord {
   timestamp: bigint;
 }
 
-// ── Contract service functions ────────────────────────────────────────────────
+export interface SupportingDocRecord {
+  docId: bigint;
+  evidenceId: bigint;
+  ipfsCID: string;
+  fileHash: string;
+  uploadedBy: string;
+  timestamp: bigint;
+  docType: string;
+}
+
+// ── Evidence Functions ────────────────────────────────────────────────────────
 
 /**
- * Registers new evidence on-chain.
- * Called after file is uploaded to IPFS and hashed.
- *
- * @param caseId   - Numeric case identifier
- * @param ipfsCID  - IPFS CID returned by Pinata
- * @param fileHash - SHA-256 hash of the evidence file
- * @returns Transaction hash
+ * Registers new evidence on-chain (Police only — enforced by contract).
  */
 export async function addEvidence(
   caseId: number,
@@ -59,21 +79,47 @@ export async function addEvidence(
 ): Promise<string> {
   const tx = await contract.addEvidence(caseId, ipfsCID, fileHash);
   const receipt = await tx.wait();
-
   if (!receipt || receipt.status !== 1) {
     throw new Error("addEvidence transaction failed on-chain");
   }
-
   return tx.hash;
 }
 
 /**
- * Transfers custody of evidence to a new holder.
- * Only callable by the current holder (enforced by the contract).
- *
- * @param evidenceId - On-chain evidence ID
- * @param newHolder  - Ethereum address of the new custodian
- * @returns Transaction hash
+ * Adds a supporting document linked to existing evidence
+ * (Forensic or Lawyer only — enforced by contract).
+ */
+export async function addSupportingDoc(
+  evidenceId: number,
+  ipfsCID: string,
+  fileHash: string,
+  docType: string,
+  signerWallet: string
+): Promise<string> {
+  // Use the role-specific signer wallet for this transaction
+  const roleSigner = new ethers.Wallet(signerWallet, provider);
+  const roleContract = new ethers.Contract(
+    ENV.CONTRACT_ADDRESS,
+    artifact.abi,
+    roleSigner
+  );
+
+  const tx = await roleContract.addSupportingDoc(
+    evidenceId,
+    ipfsCID,
+    fileHash,
+    docType
+  );
+  const receipt = await tx.wait();
+  if (!receipt || receipt.status !== 1) {
+    throw new Error("addSupportingDoc transaction failed on-chain");
+  }
+  return tx.hash;
+}
+
+/**
+ * Transfers custody of evidence to a new holder
+ * (Police or Forensic only — enforced by contract).
  */
 export async function transferCustody(
   evidenceId: number,
@@ -81,25 +127,42 @@ export async function transferCustody(
 ): Promise<string> {
   const tx = await contract.transferCustody(evidenceId, newHolder);
   const receipt = await tx.wait();
-
   if (!receipt || receipt.status !== 1) {
     throw new Error("transferCustody transaction failed on-chain");
   }
-
   return tx.hash;
 }
 
 /**
- * Retrieves evidence metadata from the contract.
- *
- * @param evidenceId - On-chain evidence ID
- * @returns EvidenceRecord struct
+ * Records an integrity check event on-chain
+ * (Forensic or Judge only — enforced by contract).
  */
+export async function recordIntegrityCheck(
+  evidenceId: number,
+  passed: boolean,
+  signerWallet: string
+): Promise<string> {
+  const roleSigner = new ethers.Wallet(signerWallet, provider);
+  const roleContract = new ethers.Contract(
+    ENV.CONTRACT_ADDRESS,
+    artifact.abi,
+    roleSigner
+  );
+
+  const tx = await roleContract.recordIntegrityCheck(evidenceId, passed);
+  const receipt = await tx.wait();
+  if (!receipt || receipt.status !== 1) {
+    throw new Error("recordIntegrityCheck transaction failed on-chain");
+  }
+  return tx.hash;
+}
+
+// ── View Functions ────────────────────────────────────────────────────────────
+
 export async function getEvidence(
   evidenceId: number
 ): Promise<EvidenceRecord> {
   const result = await contract.getEvidence(evidenceId);
-
   return {
     evidenceId: result.evidenceId,
     caseId: result.caseId,
@@ -112,17 +175,10 @@ export async function getEvidence(
   };
 }
 
-/**
- * Retrieves the full custody history for a piece of evidence.
- *
- * @param evidenceId - On-chain evidence ID
- * @returns Array of CustodyRecord structs
- */
 export async function getCustodyHistory(
   evidenceId: number
 ): Promise<CustodyRecord[]> {
   const results = await contract.getCustodyHistory(evidenceId);
-
   return results.map((r: CustodyRecord) => ({
     from: r.from,
     to: r.to,
@@ -130,15 +186,28 @@ export async function getCustodyHistory(
   }));
 }
 
-/**
- * Checks whether a file hash is already registered on-chain.
- * Used for duplicate detection before uploading.
- *
- * @param fileHash - SHA-256 hash to check
- * @returns boolean
- */
+export async function getSupportingDocs(
+  evidenceId: number
+): Promise<SupportingDocRecord[]> {
+  const results = await contract.getSupportingDocs(evidenceId);
+  return results.map((r: SupportingDocRecord) => ({
+    docId: r.docId,
+    evidenceId: r.evidenceId,
+    ipfsCID: r.ipfsCID,
+    fileHash: r.fileHash,
+    uploadedBy: r.uploadedBy,
+    timestamp: r.timestamp,
+    docType: r.docType,
+  }));
+}
+
 export async function isFileHashRegistered(
   fileHash: string
 ): Promise<boolean> {
   return await contract.isFileHashRegistered(fileHash);
+}
+
+export async function getOnChainRole(address: string): Promise<string> {
+  const role = await contract.getRole(address);
+  return RoleNames[Number(role)] ?? "None";
 }

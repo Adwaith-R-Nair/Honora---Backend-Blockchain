@@ -4,17 +4,16 @@ import { ethers } from "ethers";
 
 /**
  * POST /api/custody/transfer
+ * Role: Police or Forensic
  *
- * Transfers custody of a registered evidence item to a new holder.
+ * Transfers custody of evidence to a new holder.
+ * The backend signer must be the current holder on-chain.
  *
  * Request body:
  * {
  *   "evidenceId": 1,
  *   "newHolder": "0x..."
  * }
- *
- * The backend signer (Account #1) must be the current holder
- * for this transaction to succeed on-chain.
  */
 export async function transferEvidenceCustody(
   req: Request,
@@ -23,7 +22,6 @@ export async function transferEvidenceCustody(
   try {
     const { evidenceId, newHolder } = req.body;
 
-    // ── Validate evidenceId ─────────────────────────────────────────────────────
     const parsedId = parseInt(evidenceId, 10);
     if (isNaN(parsedId) || parsedId <= 0) {
       res.status(400).json({
@@ -33,7 +31,6 @@ export async function transferEvidenceCustody(
       return;
     }
 
-    // ── Validate newHolder address ──────────────────────────────────────────────
     if (!newHolder || !ethers.isAddress(newHolder)) {
       res.status(400).json({
         success: false,
@@ -42,18 +39,19 @@ export async function transferEvidenceCustody(
       return;
     }
 
-    // ── Execute on-chain transfer ───────────────────────────────────────────────
     console.log(
-      `[Custody] Transferring evidenceId ${parsedId} to ${newHolder}`
+      `[Custody] ${req.user?.role} (${req.user?.walletAddress}) transferring evidenceId ${parsedId} to ${newHolder}`
     );
+
     const txHash = await transferCustody(parsedId, newHolder);
-    console.log(`[Custody] Transaction hash: ${txHash}`);
+    console.log(`[Custody] TX: ${txHash}`);
 
     res.status(200).json({
       success: true,
       message: "Custody transferred successfully",
       data: {
         evidenceId: parsedId,
+        transferredBy: req.user?.walletAddress,
         newHolder,
         txHash,
       },

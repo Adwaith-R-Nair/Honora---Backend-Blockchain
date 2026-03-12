@@ -10,13 +10,14 @@ import {
 
 /**
  * POST /api/evidence/upload
+ * Role: Police only
  *
  * Full upload flow:
  * 1. Receive file via multipart/form-data
  * 2. Generate SHA-256 hash
  * 3. Check for duplicate hash on-chain
  * 4. Upload file to IPFS via Pinata
- * 5. Register evidence on-chain (caseId + CID + hash)
+ * 5. Register evidence on-chain
  * 6. Return evidence record to caller
  */
 export async function uploadEvidence(
@@ -24,13 +25,11 @@ export async function uploadEvidence(
   res: Response
 ): Promise<void> {
   try {
-    // ── Validate file ───────────────────────────────────────────────────────────
     if (!req.file) {
       res.status(400).json({ success: false, error: "No file uploaded" });
       return;
     }
 
-    // ── Validate caseId ─────────────────────────────────────────────────────────
     const caseId = parseInt(req.body.caseId, 10);
     if (isNaN(caseId) || caseId <= 0) {
       res.status(400).json({
@@ -42,11 +41,11 @@ export async function uploadEvidence(
 
     const { buffer, originalname } = req.file;
 
-    // ── Step 1: Generate SHA-256 hash ───────────────────────────────────────────
+    // Step 1: Generate SHA-256 hash
     const fileHash = generateFileHash(buffer);
-    console.log(`[Evidence] SHA-256 hash generated: ${fileHash}`);
+    console.log(`[Evidence] SHA-256: ${fileHash}`);
 
-    // ── Step 2: Duplicate check ─────────────────────────────────────────────────
+    // Step 2: Duplicate check
     const isDuplicate = await isFileHashRegistered(fileHash);
     if (isDuplicate) {
       res.status(409).json({
@@ -57,17 +56,16 @@ export async function uploadEvidence(
       return;
     }
 
-    // ── Step 3: Upload to IPFS via Pinata ───────────────────────────────────────
+    // Step 3: Upload to IPFS
     console.log(`[Evidence] Uploading to IPFS: ${originalname}`);
     const ipfsCID = await uploadToIPFS(buffer, originalname);
-    console.log(`[Evidence] IPFS CID: ${ipfsCID}`);
+    console.log(`[Evidence] CID: ${ipfsCID}`);
 
-    // ── Step 4: Register on-chain ───────────────────────────────────────────────
+    // Step 4: Register on-chain
     console.log(`[Evidence] Registering on-chain for caseId: ${caseId}`);
     const txHash = await addEvidence(caseId, ipfsCID, fileHash);
-    console.log(`[Evidence] Transaction hash: ${txHash}`);
+    console.log(`[Evidence] TX: ${txHash}`);
 
-    // ── Step 5: Return response ─────────────────────────────────────────────────
     res.status(201).json({
       success: true,
       message: "Evidence uploaded and registered on-chain",
@@ -77,6 +75,7 @@ export async function uploadEvidence(
         fileHash,
         txHash,
         filename: originalname,
+        uploadedBy: req.user?.walletAddress,
         ipfsUrl: `https://gateway.pinata.cloud/ipfs/${ipfsCID}`,
       },
     });
@@ -91,8 +90,7 @@ export async function uploadEvidence(
 
 /**
  * GET /api/evidence/:id
- *
- * Returns full evidence metadata for a given on-chain evidence ID.
+ * Role: All authenticated users
  */
 export async function getEvidenceById(
   req: Request,
@@ -134,8 +132,7 @@ export async function getEvidenceById(
 
 /**
  * GET /api/evidence/:id/history
- *
- * Returns the full on-chain custody history for a given evidence ID.
+ * Role: All authenticated users
  */
 export async function getEvidenceHistory(
   req: Request,
