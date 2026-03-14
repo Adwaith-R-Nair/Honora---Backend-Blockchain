@@ -6,19 +6,19 @@ import {
   getEvidence,
   getCustodyHistory,
   isFileHashRegistered,
+  getEvidenceCount,
 } from "../services/contract.service.js";
+import { Evidence } from "../models/evidence.model.js";
 
 /**
  * POST /api/evidence/upload
  * Role: Police only
  *
- * Full upload flow:
- * 1. Receive file via multipart/form-data
- * 2. Generate SHA-256 hash
- * 3. Check for duplicate hash on-chain
- * 4. Upload file to IPFS via Pinata
- * 5. Register evidence on-chain
- * 6. Return evidence record to caller
+ * Body (form-data):
+ * - file:       File
+ * - caseId:     number
+ * - caseName:   string  (e.g. "State v. Richardson")
+ * - department: string  (e.g. "financial-crimes")
  */
 export async function uploadEvidence(
   req: Request,
@@ -36,6 +36,16 @@ export async function uploadEvidence(
         success: false,
         error: "caseId must be a positive integer",
       });
+      return;
+    }
+
+    const { caseName, department } = req.body;
+    if (!caseName) {
+      res.status(400).json({ success: false, error: "caseName is required" });
+      return;
+    }
+    if (!department) {
+      res.status(400).json({ success: false, error: "department is required" });
       return;
     }
 
@@ -59,6 +69,7 @@ export async function uploadEvidence(
     // Step 3: Upload to IPFS
     console.log(`[Evidence] Uploading to IPFS: ${originalname}`);
     const ipfsCID = await uploadToIPFS(buffer, originalname);
+    const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCID}`;
     console.log(`[Evidence] CID: ${ipfsCID}`);
 
     // Step 4: Register on-chain
@@ -66,17 +77,41 @@ export async function uploadEvidence(
     const txHash = await addEvidence(caseId, ipfsCID, fileHash);
     console.log(`[Evidence] TX: ${txHash}`);
 
+    // Step 5: Get the new evidenceId (contract increments count on each upload)
+    const evidenceId = await getEvidenceCount();
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    // Step 6: Save enriched metadata to MongoDB
+    await Evidence.create({
+      evidenceId,
+      caseId,
+      caseName,
+      department,
+      filename:   originalname,
+      ipfsCID,
+      ipfsUrl,
+      fileHash,
+      uploadedBy: req.user?.walletAddress ?? "",
+      timestamp,
+    });
+
+    console.log(`[Evidence] Saved to MongoDB: evidenceId ${evidenceId}`);
+
     res.status(201).json({
       success: true,
       message: "Evidence uploaded and registered on-chain",
       data: {
+        evidenceId,
         caseId,
+        caseName,
+        department,
         ipfsCID,
         fileHash,
         txHash,
-        filename: originalname,
+        filename:   originalname,
         uploadedBy: req.user?.walletAddress,
-        ipfsUrl: `https://gateway.pinata.cloud/ipfs/${ipfsCID}`,
+        ipfsUrl,
+        timestamp,
       },
     });
   } catch (error) {
@@ -91,6 +126,8 @@ export async function uploadEvidence(
 /**
  * GET /api/evidence/:id
  * Role: All authenticated users
+ *
+ * Returns merged on-chain + MongoDB metadata
  */
 export async function getEvidenceById(
   req: Request,
@@ -106,19 +143,26 @@ export async function getEvidenceById(
       return;
     }
 
-    const evidence = await getEvidence(evidenceId);
+    // Fetch from blockchain + MongoDB in parallel
+    const [onChain, meta] = await Promise.all([
+      getEvidence(evidenceId),
+      Evidence.findOne({ evidenceId }),
+    ]);
 
     res.status(200).json({
       success: true,
       data: {
-        evidenceId: evidence.evidenceId.toString(),
-        caseId: evidence.caseId.toString(),
-        ipfsCID: evidence.ipfsCID,
-        fileHash: evidence.fileHash,
-        uploadedBy: evidence.uploadedBy,
-        timestamp: evidence.timestamp.toString(),
-        currentHolder: evidence.currentHolder,
-        ipfsUrl: `https://gateway.pinata.cloud/ipfs/${evidence.ipfsCID}`,
+        evidenceId:    onChain.evidenceId.toString(),
+        caseId:        onChain.caseId.toString(),
+        caseName:      meta?.caseName ?? null,
+        department:    meta?.department ?? null,
+        filename:      meta?.filename ?? null,
+        ipfsCID:       onChain.ipfsCID,
+        fileHash:      onChain.fileHash,
+        uploadedBy:    onChain.uploadedBy,
+        timestamp:     onChain.timestamp.toString(),
+        currentHolder: onChain.currentHolder,
+        ipfsUrl:       `https://gateway.pinata.cloud/ipfs/${onChain.ipfsCID}`,
       },
     });
   } catch (error) {
@@ -153,8 +197,8 @@ export async function getEvidenceHistory(
     res.status(200).json({
       success: true,
       data: history.map((record) => ({
-        from: record.from,
-        to: record.to,
+        from:      record.from,
+        to:        record.to,
         timestamp: record.timestamp.toString(),
       })),
     });

@@ -211,3 +211,13 @@ export async function getOnChainRole(address: string): Promise<string> {
   const role = await contract.getRole(address);
   return RoleNames[Number(role)] ?? "None";
 }
+
+export async function getEvidenceCount(): Promise<number> {
+  const count = await contract.evidenceCount();
+  return Number(count);
+}
+
+export async function getSupportingDocCount(): Promise<number> {
+  const count = await contract.supportingDocCount();
+  return Number(count);
+}

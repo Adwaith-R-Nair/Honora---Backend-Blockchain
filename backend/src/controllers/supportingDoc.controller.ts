@@ -7,10 +7,11 @@ import {
   getEvidence,
   isFileHashRegistered,
   recordIntegrityCheck,
+  getSupportingDocCount,
 } from "../services/contract.service.js";
+import { SupportingDoc } from "../models/evidence.model.js";
 
 // Private key map for role-based signing
-// In production this would be handled via a proper key management system
 const ROLE_PRIVATE_KEYS: Record<string, string> = {
   "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a", // Forensic
   "0x90f79bf6eb2c4f870365e785982e1f101e93b906": "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6", // Lawyer
@@ -20,13 +21,6 @@ const ROLE_PRIVATE_KEYS: Record<string, string> = {
 /**
  * POST /api/supporting-docs/upload
  * Role: Forensic or Lawyer
- *
- * Upload flow:
- * 1. Receive file + evidenceId + docType
- * 2. Generate SHA-256 hash
- * 3. Check duplicate
- * 4. Upload to IPFS
- * 5. Register on-chain linked to parent evidenceId
  */
 export async function uploadSupportingDoc(
   req: Request,
@@ -79,12 +73,12 @@ export async function uploadSupportingDoc(
     // Step 3: Upload to IPFS
     console.log(`[SupportingDoc] Uploading to IPFS: ${originalname}`);
     const ipfsCID = await uploadToIPFS(buffer, originalname);
+    const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCID}`;
     console.log(`[SupportingDoc] CID: ${ipfsCID}`);
 
-    // Step 4: Get signer private key for this wallet
+    // Step 4: Get signer private key
     const walletAddress = req.user?.walletAddress.toLowerCase() ?? "";
     const signerPrivateKey = ROLE_PRIVATE_KEYS[walletAddress];
-
     if (!signerPrivateKey) {
       res.status(403).json({
         success: false,
@@ -104,18 +98,38 @@ export async function uploadSupportingDoc(
     );
     console.log(`[SupportingDoc] TX: ${txHash}`);
 
+    // Step 6: Get docId + save to MongoDB
+    const docId = await getSupportingDocCount();
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    await SupportingDoc.create({
+      docId,
+      evidenceId,
+      docType,
+      filename:   originalname,
+      ipfsCID,
+      ipfsUrl,
+      fileHash,
+      uploadedBy: req.user?.walletAddress ?? "",
+      timestamp,
+    });
+
+    console.log(`[SupportingDoc] Saved to MongoDB: docId ${docId}`);
+
     res.status(201).json({
       success: true,
       message: "Supporting document uploaded and registered on-chain",
       data: {
+        docId,
         evidenceId,
         docType,
         ipfsCID,
         fileHash,
         txHash,
-        filename: originalname,
+        filename:   originalname,
         uploadedBy: req.user?.walletAddress,
-        ipfsUrl: `https://gateway.pinata.cloud/ipfs/${ipfsCID}`,
+        ipfsUrl,
+        timestamp,
       },
     });
   } catch (error) {
@@ -130,6 +144,8 @@ export async function uploadSupportingDoc(
 /**
  * GET /api/supporting-docs/:evidenceId
  * Role: All authenticated users
+ *
+ * Returns merged on-chain + MongoDB metadata
  */
 export async function getSupportingDocsByEvidence(
   req: Request,
@@ -145,21 +161,29 @@ export async function getSupportingDocsByEvidence(
       return;
     }
 
-    const docs = await getSupportingDocs(evidenceId);
+    // Fetch from blockchain + MongoDB in parallel
+    const [onChainDocs, mongoDocs] = await Promise.all([
+      getSupportingDocs(evidenceId),
+      SupportingDoc.find({ evidenceId }),
+    ]);
 
-    res.status(200).json({
-      success: true,
-      data: docs.map((doc) => ({
-        docId: doc.docId.toString(),
+    // Merge on-chain with MongoDB metadata
+    const merged = onChainDocs.map((doc) => {
+      const meta = mongoDocs.find((m) => m.docId === Number(doc.docId));
+      return {
+        docId:      doc.docId.toString(),
         evidenceId: doc.evidenceId.toString(),
-        ipfsCID: doc.ipfsCID,
-        fileHash: doc.fileHash,
+        docType:    doc.docType,
+        filename:   meta?.filename ?? null,
+        ipfsCID:    doc.ipfsCID,
+        fileHash:   doc.fileHash,
         uploadedBy: doc.uploadedBy,
-        timestamp: doc.timestamp.toString(),
-        docType: doc.docType,
-        ipfsUrl: `https://gateway.pinata.cloud/ipfs/${doc.ipfsCID}`,
-      })),
+        timestamp:  doc.timestamp.toString(),
+        ipfsUrl:    `https://gateway.pinata.cloud/ipfs/${doc.ipfsCID}`,
+      };
     });
+
+    res.status(200).json({ success: true, data: merged });
   } catch (error) {
     console.error("[SupportingDoc] Fetch failed:", error);
     res.status(500).json({
@@ -172,9 +196,6 @@ export async function getSupportingDocsByEvidence(
 /**
  * POST /api/supporting-docs/verify/:evidenceId
  * Role: Forensic or Judge
- *
- * Verifies integrity of evidence by recomputing SHA-256
- * and comparing against on-chain hash.
  */
 export async function verifyEvidenceIntegrity(
   req: Request,
@@ -195,19 +216,12 @@ export async function verifyEvidenceIntegrity(
       return;
     }
 
-    // Get on-chain evidence record
     const evidence = await getEvidence(evidenceId);
-
-    // Recompute hash from uploaded file
     const computedHash = generateFileHash(req.file.buffer);
-
-    // Compare against on-chain hash
     const passed = computedHash === evidence.fileHash;
 
-    // Get signer private key
     const walletAddress = req.user?.walletAddress.toLowerCase() ?? "";
     const signerPrivateKey = ROLE_PRIVATE_KEYS[walletAddress];
-
     if (!signerPrivateKey) {
       res.status(403).json({
         success: false,
@@ -216,12 +230,7 @@ export async function verifyEvidenceIntegrity(
       return;
     }
 
-    // Record integrity check on-chain
-    const txHash = await recordIntegrityCheck(
-      evidenceId,
-      passed,
-      signerPrivateKey
-    );
+    const txHash = await recordIntegrityCheck(evidenceId, passed, signerPrivateKey);
 
     console.log(
       `[Integrity] evidenceId ${evidenceId} — ${passed ? "PASSED ✅" : "FAILED ❌"} — TX: ${txHash}`
@@ -234,7 +243,7 @@ export async function verifyEvidenceIntegrity(
         passed,
         computedHash,
         onChainHash: evidence.fileHash,
-        verifiedBy: req.user?.walletAddress,
+        verifiedBy:  req.user?.walletAddress,
         txHash,
         message: passed
           ? "Integrity verified — file matches on-chain hash"
