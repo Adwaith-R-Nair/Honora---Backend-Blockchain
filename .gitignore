@@ -46,3 +46,6 @@ npm-debug.log*
 
 # VS Code
 .vscode/
+
+# Sepolia
+deployment-sepolia.json
