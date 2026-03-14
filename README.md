@@ -1,4 +1,4 @@
-# 🔐 Honora — Blockchain-Based Evidence Management System
+# 🔐 Honora : Blockchain-Based Evidence Management System
 
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636?logo=solidity)](https://soliditylang.org/)
 [![Hardhat](https://img.shields.io/badge/Hardhat-v3.1.10-yellow)](https://hardhat.org/)
@@ -34,11 +34,11 @@
 
 Honora is a university mini-project that demonstrates how blockchain technology can be used to secure digital evidence in law enforcement. The system ensures:
 
-- **Immutability** — Evidence records cannot be altered once registered on-chain
-- **Transparency** — Full chain-of-custody history is publicly verifiable on Etherscan
-- **Integrity** — SHA-256 file hashing detects any tampering with evidence files
-- **Access Control** — Role-based permissions ensure only authorized roles can perform specific actions
-- **Decentralized Storage** — Files are stored on IPFS via Pinata, not on a centralized server
+- **Immutability** : Evidence records cannot be altered once registered on-chain
+- **Transparency** : Full chain-of-custody history is publicly verifiable on Etherscan
+- **Integrity** : SHA-256 file hashing detects any tampering with evidence files
+- **Access Control** : Role-based permissions ensure only authorized roles can perform specific actions
+- **Decentralized Storage** : Files are stored on IPFS via Pinata, not on a centralized server
 
 ### Live Deployment
 
@@ -107,7 +107,7 @@ Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 
 ## Features
 
-### ✅ Phase 1 — Core Evidence Management
+### ✅ Phase 1 : Core Evidence Management
 - Upload evidence files to IPFS with SHA-256 integrity hashing
 - Register evidence metadata on-chain (immutable)
 - Retrieve evidence by ID with full metadata
@@ -115,30 +115,30 @@ Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 - Full custody history recorded on-chain
 - Duplicate file detection via on-chain hash registry
 
-### ✅ Phase 2 — RBAC + Authentication
+### ✅ Phase 2 : RBAC + Authentication
 - JWT-based authentication (register/login)
 - Role-based access control (Police, Forensic, Lawyer, Judge)
 - Upload supporting documents linked to evidence
-- Integrity verification — recompute SHA-256 and compare against on-chain hash
+- Integrity verification : recompute SHA-256 and compare against on-chain hash
 - MongoDB user management with bcrypt password hashing
 - Role enforcement middleware returning clear 403 errors
 
-### ✅ Phase 3 — Metadata Enrichment
+### ✅ Phase 3 : Metadata Enrichment
 - MongoDB evidence collection stores `caseName`, `department`, `filename`
 - Merged on-chain + off-chain data in single API response
 - Supporting document metadata stored in MongoDB
 
-### ✅ Phase 4 — Testnet Deployment
+### ✅ Phase 4 : Testnet Deployment
 - Contract deployed and verified on Ethereum Sepolia testnet
 - Publicly verifiable on Etherscan
 
-### 🔲 Phase 5 — AI Layer *(In Development)*
+### 🔲 Phase 5 : AI Layer *(In Development)*
 - Semantic search across evidence using Legal-BERT embeddings
 - Cross-case linkage detection (similarity threshold: 0.85)
 - Qdrant vector database with RBAC-filtered search
 - FastAPI microservice running independently on port 8000
 
-### 🔲 Phase 6 — Frontend *(In Development)*
+### 🔲 Phase 6 : Frontend *(In Development)*
 - React dashboard for all roles
 - Evidence upload, search, and verification UI
 - Custody history timeline visualization
@@ -230,7 +230,7 @@ All endpoints except `/api/auth/*` require `Authorization: Bearer <token>` heade
 |---|---|---|---|
 | POST | `/api/custody/transfer` | Police, Forensic | Transfer custody |
 
-### Example Response — GET /api/evidence/:id
+### Example Response : GET /api/evidence/:id
 ```json
 {
   "success": true,
@@ -351,18 +351,18 @@ npx hardhat compile
 
 ### Running Locally
 
-**Terminal 1 — Start Hardhat node:**
+**Terminal 1 : Start Hardhat node:**
 ```bash
 npx hardhat node
 ```
 
-**Terminal 2 — Deploy contract + assign roles (one command):**
+**Terminal 2 : Deploy contract + assign roles (one command):**
 ```bash
 npx hardhat run scripts/setup.ts --network localhost
 ```
 Copy the `CONTRACT_ADDRESS` from the output and paste it into `backend/.env`.
 
-**Terminal 3 — Start backend:**
+**Terminal 3 : Start backend:**
 ```bash
 cd backend
 npm run dev
@@ -400,10 +400,10 @@ Etherscan: https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee
 
 ## Important Notes
 
-- **Local blockchain resets** every time `npx hardhat node` restarts — all on-chain data is wiped
+- **Local blockchain resets** every time `npx hardhat node` restarts : all on-chain data is wiped
 - Run `setup.ts` after every node restart to redeploy and reassign roles
-- **MongoDB and IPFS data persists** across node restarts — only blockchain state is lost
-- Never commit `.env` files to GitHub — they are gitignored
+- **MongoDB and IPFS data persists** across node restarts : only blockchain state is lost
+- Never commit `.env` files to GitHub : they are gitignored
 - The `PRIVATE_KEY` in `backend/.env` for local dev is Hardhat Account #1 (deterministic test wallet, not real)
 
 ---
@@ -416,8 +416,8 @@ Etherscan: https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee
 | 2 | RBAC + JWT Auth + MongoDB + Supporting Docs | ✅ Complete |
 | 3 | MongoDB metadata enrichment (caseName, department) | ✅ Complete |
 | 4 | Sepolia testnet deployment | ✅ Complete |
-| 5 | AI Layer — semantic search + cross-case linkage | 🔲 In Development |
-| 6 | React Frontend — dashboard for all roles | 🔲 In Development |
+| 5 | AI Layer : semantic search + cross-case linkage | 🔲 In Development |
+| 6 | React Frontend : dashboard for all roles | 🔲 In Development |
 | 7 | Final documentation + submission | 🔲 Pending |
 
 ---
