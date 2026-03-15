@@ -97,6 +97,23 @@ export async function uploadEvidence(
 
     console.log(`[Evidence] Saved to MongoDB: evidenceId ${evidenceId}`);
 
+    // ── Notify AI service for Qdrant indexing (non-blocking) ────────────────
+    try {
+      await fetch("http://localhost:8000/api/index", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": req.headers.authorization ?? "",
+        },
+        body: JSON.stringify({ evidenceId }),
+      });
+      console.log(`[AI] Indexed evidenceId ${evidenceId} in Qdrant`);
+    } catch {
+      // AI service not running — silently skip, don't fail the upload
+      console.log(`[AI] Service unavailable — skipping Qdrant indexing`);
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     res.status(201).json({
       success: true,
       message: "Evidence uploaded and registered on-chain",
