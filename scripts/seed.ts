@@ -211,6 +211,17 @@ async function main() {
     throw new Error("test-data/ folder not found. Please create it first.");
   }
 
+  // ── Clear existing evidence data ──────────────────────────────────────────────
+  console.log("🧹 Clearing existing evidence data...\n");
+  const clearRes = await fetch(`${BACKEND_URL}/api/seed/clear`, {
+    method: "DELETE",
+  });
+  if (clearRes.ok) {
+    console.log("   ✅ Evidence and supporting docs cleared\n");
+  } else {
+    console.log("   ⚠️  Clear failed — continuing anyway\n");
+  }
+
   // ── Step 1: Register/Login all users ───────────────────────────────────────
   console.log("👤 Step 1 — Setting up test users...\n");
   const tokens: Record<string, string> = {};

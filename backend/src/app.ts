@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth.routes.js";
 import evidenceRoutes from "./routes/evidence.routes.js";
 import custodyRoutes from "./routes/custody.routes.js";
 import supportingDocRoutes from "./routes/supportingDoc.routes.js";
+import seedRoutes from "./routes/seed.routes.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/evidence", evidenceRoutes);
 app.use("/api/custody", custodyRoutes);
 app.use("/api/supporting-docs", supportingDocRoutes);
+app.use("/api/seed", seedRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
