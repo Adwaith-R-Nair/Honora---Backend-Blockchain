@@ -98,6 +98,22 @@ export async function uploadSupportingDoc(
     );
     console.log(`[SupportingDoc] TX: ${txHash}`);
 
+    // ── Notify AI service for supporting doc indexing (non-blocking) ─────────
+    try {
+      await fetch("http://localhost:8000/api/index-supporting", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": req.headers.authorization ?? "",
+        },
+        body: JSON.stringify({ evidenceId: evidenceId.toString() }),
+      });
+      console.log(`[AI] Indexed supporting docs for evidenceId ${evidenceId}`);
+    } catch {
+      console.log(`[AI] Service unavailable — skipping supporting doc indexing`);
+    }
+// ─────────────────────────────────────────────────────────────────────────
+
     // Step 6: Get docId + save to MongoDB
     const docId = await getSupportingDocCount();
     const timestamp = Math.floor(Date.now() / 1000);

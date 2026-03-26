@@ -20,12 +20,16 @@ from embeddings import embed_text
 from preprocessing import extract_full
 from search import semantic_search
 from vector_store import ensure_collection, upsert_evidence
+from cross_case import find_linked_cases
 
 load_dotenv()
 
 EMS_BACKEND_URL: str = os.getenv("EMS_BACKEND_URL", "http://localhost:3000")
 JWT_SECRET: str = os.getenv("JWT_SECRET", "changeme")
 JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.85"))
+
+
 
 SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".doc"]
 
@@ -120,6 +124,9 @@ class SearchRequest(BaseModel):
 class IndexRequest(BaseModel):
     evidenceId: str
 
+class CrossCaseRequest(BaseModel):
+    evidenceId: str
+    top_k: int = 10
 
 # ── Routes ────────────────────────────────────────────────────────────────
 @app.get("/health")
@@ -262,6 +269,74 @@ async def search_evidence(
     )
     return {"results": results, "count": len(results)}
 
+@app.post("/api/cross-case-linkage")
+async def cross_case_linkage(
+    body: CrossCaseRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    rbac: dict[str, Any] = Depends(get_rbac),
+):
+    """
+    Find cases semantically similar to a given evidence item.
+    Returns cases with similarity score above SIMILARITY_THRESHOLD (default 0.85).
+    """
+    evidence_id = body.evidenceId
+    auth_headers = {"Authorization": f"Bearer {credentials.credentials}"}
+
+    # Fetch the evidence metadata from backend
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{EMS_BACKEND_URL}/api/evidence/{evidence_id}",
+            headers=auth_headers,
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Backend returned {resp.status_code}"
+            )
+        evidence_data = resp.json().get("data", {})
+
+    # Fetch the actual file from IPFS to get its text
+    ipfs_url = evidence_data.get("ipfsUrl", "")
+    filename = evidence_data.get("filename", "")
+    case_id = evidence_data.get("caseId", "")
+
+    if not ipfs_url:
+        raise HTTPException(status_code=404, detail="No IPFS URL for this evidence")
+
+    if not any(filename.lower().endswith(ext) for ext in SUPPORTED_EXTENSIONS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not supported for cross-case linkage: {filename}"
+        )
+
+    # Download and extract text
+    async with httpx.AsyncClient() as client:
+        file_resp = await client.get(ipfs_url, timeout=60)
+        if file_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Could not download file from IPFS")
+        file_bytes = file_resp.content
+
+    extraction = extract_full(file_bytes, filename=filename)
+    query_text = extraction.combined
+
+    # Find linked cases
+    linked = find_linked_cases(
+        query_text=query_text,
+        source_case_id=str(case_id),
+        source_evidence_id=str(evidence_id),
+        top_k=body.top_k,
+    )
+
+    return {
+        "sourceEvidenceId": evidence_id,
+        "sourceCaseId":     case_id,
+        "sourceCaseName":   evidence_data.get("caseName"),
+        "department":       evidence_data.get("department"),
+        "threshold":        SIMILARITY_THRESHOLD,
+        "linkedCases":      linked,
+        "totalLinked":      len(linked),
+    }
 
 # ── Entry point (python main.py) ──────────────────────────────────────────
 if __name__ == "__main__":
