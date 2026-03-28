@@ -356,7 +356,7 @@ body {
 
 /* ─── CASE CARD ───────────────────────────────────────────────────────────── */
 .case-card {
-  position: relative; overflow: hidden;
+  position: relative; overflow: visible;
   display: flex; align-items: center; gap: 20px;
   padding: 24px 28px;
   background: linear-gradient(135deg,#1c1008 0%,#2a1a08 60%,#1a0f04 100%);
@@ -364,10 +364,11 @@ body {
   cursor: default; transition: all 0.35s var(--ease);
   animation: slide-in 0.5s var(--ease) both;
 }
+.case-card select { position: relative; z-index: 2; }
 .case-card:hover { transform: translateX(6px) translateY(-3px); border-color: var(--border-strong); box-shadow: -4px 0 0 var(--gold), 0 16px 40px rgba(0,0,0,0.4), 0 0 30px rgba(212,175,55,0.08); }
 .case-card:hover .cc-glow { opacity: 1; }
 @keyframes slide-in { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
-.cc-glow { position: absolute; inset: 0; opacity: 0; background: linear-gradient(90deg,rgba(212,175,55,0.04) 0%,transparent 50%); transition: opacity 0.35s; pointer-events: none; }
+.cc-glow { position: absolute; inset: 0; opacity: 0; background: linear-gradient(90deg,rgba(212,175,55,0.04) 0%,transparent 50%); transition: opacity 0.35s; pointer-events: none; border-radius: 10px; overflow: hidden; }
 .cc-id    { font-family: var(--font-display); font-size: 0.75rem; color: var(--gold-dim); letter-spacing: 0.15em; min-width: 130px; }
 .cc-main  { flex: 1; }
 .cc-title { font-family: var(--font-display); font-size: 1rem; color: var(--text); font-weight: 600; margin-bottom: 4px; }

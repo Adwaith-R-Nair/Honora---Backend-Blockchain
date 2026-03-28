@@ -151,11 +151,11 @@ export default function ForensicCaseDetails({ caseId, onBack }) {
         <h1 className="dash-title">{caseData.title}</h1>
         <div className="meta-grid">
           {[
-            ["Case ID", caseData.id],
-            ["Related Police Case", caseData.relatedCaseId || "N/A"],
-            ["Evidence Type", caseData.evidenceType || "N/A"],
-            ["Assignment Date", caseData.assignedDate || "N/A"],
-            ["Analyst", user?.username || "Unknown"],
+            ["Case ID", caseData.caseId],
+            ["Department", caseData.department || "General"],
+            ["Filed By", caseData.uploadedBy || "N/A"],
+            ["Filed On", caseData.timestamp ? new Date(caseData.timestamp * 1000).toLocaleDateString() : "N/A"],
+            ["Analyst", user?.name || "Unknown"],
           ].map(([l, v]) => (
             <div className="meta-item" key={l}>
               <span className="meta-label">{l}</span>

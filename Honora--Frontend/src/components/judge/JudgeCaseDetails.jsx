@@ -31,7 +31,7 @@ export default function JudgeCaseDetails({ caseId, onBack }) {
         id: cData.evidenceId || cData.caseId,
         title: cData.caseName,
         status: cData.status || "Open",
-        court: cData.court || "District Court",
+        department: cData.department || "General",
       });
 
       // Fetch ALL evidence items for this case
@@ -142,10 +142,10 @@ export default function JudgeCaseDetails({ caseId, onBack }) {
 
         <div className="judge-meta-grid">
           {[
-            ["Case ID", caseData.id],
-            ["Court", caseData.court || "N/A"],
-            ["Presiding Judge", user?.username || "Unknown"],
-            ["Next Hearing", caseData.nextHearing || "N/A"],
+            ["Case ID", caseData.caseId],
+            ["Department", caseData.department || "General"],
+            ["Presiding Judge", user?.name || "Unknown"],
+            ["Filed On", caseData.timestamp ? new Date(caseData.timestamp * 1000).toLocaleDateString() : "N/A"],
           ].map(([l, v]) => (
             <div className="judge-meta-item" key={l}>
               <span className="judge-meta-label">{l}</span>

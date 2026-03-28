@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../common/useAuth.jsx";
-import { getCaseById } from "../../services/api.js";
+import { getCaseById, getCases, getForensicReports } from "../../services/api.js";
 import EvidenceCard from "../common/EvidenceCard.jsx";
 import EvidenceModal from "../common/EvidenceModal.jsx";
 import UploadEvidenceModal from "./UploadEvidenceModal.jsx";
@@ -52,34 +52,68 @@ export default function CaseDetails() {
     fetchCaseData();
   }, [id, user, navigate]);
 
+  const getFileFormat = (filename) => {
+    const ext = filename?.split('.').pop().toLowerCase();
+    if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return "Video";
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return "Photo";
+    if (['pdf', 'docx', 'doc', 'txt'].includes(ext)) return "Text Document";
+    if (['mp3', 'wav', 'm4a'].includes(ext)) return "Voice Note";
+    return "Other";
+  };
+
   const fetchCaseData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await getCaseById(id); 
-      const data = response.data; 
+      // Fetch the primary evidence item (for case metadata)
+      const response = await getCaseById(id);
+      const data = response.data;
+      const numericCaseId = data.caseId;
 
       setCaseData({
         ...data,
-        id: data.caseId,           
-        title: data.caseName,     
+        id: data.caseId,
+        title: data.caseName,
         date: new Date(data.timestamp * 1000).toLocaleDateString(),
         status: data.status || "Under Investigation",
-        officer: data.uploadedBy ? `${data.uploadedBy.substring(0, 6)}...${data.uploadedBy.slice(-4)}` : "N/A"
+        officer: data.uploadedBy ? `${data.uploadedBy.substring(0, 6)}...${data.uploadedBy.slice(-4)}` : "N/A",
       });
 
-      // Logic to assign a format so the section filters work
-      const ext = data.filename?.split('.').pop().toLowerCase();
-      let format = "Other";
-      if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) format = "Video";
-      else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) format = "Photo";
-      else if (['pdf', 'docx', 'doc', 'txt'].includes(ext)) format = "Text Document";
-      else if (['mp3', 'wav', 'm4a'].includes(ext)) format = "Voice Note";
+      // Fetch ALL evidence items for this case
+      const allEvidenceRes = await getCases();
+      const allEvidence = (allEvidenceRes.data || []).filter(
+        (e) => String(e.caseId) === String(numericCaseId)
+      );
+      setEvidenceList(
+        allEvidence.map((e) => ({
+          ...e,
+          format: getFileFormat(e.filename),
+          id: e.evidenceId,
+        }))
+      );
 
-      // Wrap it in an array so getEvidenceByFormat can filter it
-      setEvidenceList([{ ...data, format, id: data.evidenceId }]); 
-
+      // Fetch forensic reports for ALL evidence items in this case
+      const allReports = [];
+      for (const ev of allEvidence) {
+        try {
+          const res = await getForensicReports(ev.evidenceId);
+          const docs = res.data || [];
+          if (Array.isArray(docs)) {
+            allReports.push(
+              ...docs.map((doc) => ({
+                ...doc,
+                id: doc.docId,
+                format: doc.docType || "forensic_report",
+                filename: doc.filename,
+              }))
+            );
+          }
+        } catch (_) {
+          // No reports for this evidenceId
+        }
+      }
+      setForensicReports(allReports);
     } catch (err) {
       console.error("Error fetching case data:", err);
       setError(err.message || "Failed to load case details");
@@ -183,12 +217,8 @@ export default function CaseDetails() {
             <span className="meta-value gold-text">{caseData.id}</span>
           </div>
           <div className="meta-item">
-            <span className="meta-label">Assigned Officer</span>
+            <span className="meta-label">Filed By</span>
             <span className="meta-value">{caseData.officer || "N/A"}</span>
-          </div>
-          <div className="meta-item">
-            <span className="meta-label">Badge Number</span>
-            <span className="meta-value">{caseData.badge || "N/A"}</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Department</span>

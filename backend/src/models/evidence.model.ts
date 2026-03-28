@@ -12,6 +12,7 @@ export interface IEvidence extends Document {
   fileHash: string;
   uploadedBy: string;
   timestamp: number;
+  status: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +44,7 @@ const EvidenceSchema = new Schema<IEvidence>(
     fileHash:    { type: String, required: true, unique: true },
     uploadedBy:  { type: String, required: true, lowercase: true },
     timestamp:   { type: Number, required: true },
+    status:      { type: String, enum: ["Open", "Under Investigation", "Closed"], default: "Under Investigation" },
   },
   { timestamps: true }
 );

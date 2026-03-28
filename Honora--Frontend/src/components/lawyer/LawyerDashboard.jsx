@@ -62,7 +62,7 @@ export default function LawyerDashboard({ onViewCase, onLogout }) {
           <p className="dash-eyebrow">Lawyer Portal — EviChain</p>
           <h1 className="dash-title">Case Overview</h1>
           <p className="dash-subtitle">
-            {user ? `${user.username}` : "Your active legal portfolio"}
+            {user ? user.name : "Your active legal portfolio"}
           </p>
         </div>
         <button className="btn-logout" onClick={onLogout}>

@@ -62,7 +62,7 @@ export default function JudgeDashboard({ onViewCase, onLogout }) {
           <p className="judge-eyebrow">Judiciary Portal — EviChain</p>
           <h1 className="judge-title">Court Case Management</h1>
           <p className="judge-subtitle">
-            {user ? `${user.username}` : "Active docket"}
+            {user ? user.name : "Active docket"}
           </p>
         </div>
         <button className="judge-logout-btn" onClick={onLogout}>

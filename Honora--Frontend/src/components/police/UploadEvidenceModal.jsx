@@ -2,14 +2,10 @@ import { useState } from "react";
 import { uploadEvidence } from "../../services/api.js";
 import { CloseIcon, PlusIcon } from "../../assets/icons/Icons.jsx";
 
-const FORMATS = ["Video", "Photo", "Text Document", "Voice Note", "Other"];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export default function UploadEvidenceModal({ caseId, onClose, onUpload }) {
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    format: "Video",
     file: null,
     fileName: "",
   });
@@ -40,13 +36,8 @@ export default function UploadEvidenceModal({ caseId, onClose, onUpload }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 1. Basic Validation
     if (!form.file) {
       setError("Please select a file to upload.");
-      return;
-    }
-    if (!form.title.trim()) {
-      setError("Evidence title is required.");
       return;
     }
 
@@ -54,22 +45,24 @@ export default function UploadEvidenceModal({ caseId, onClose, onUpload }) {
     setLoading(true);
 
     try {
-      // 2. Prepare FormData to match backend expectations
       const formData = new FormData();
-      
-      // Your backend expects these specific keys:
       formData.append("file", form.file);
-      formData.append("caseId", caseId); 
-      formData.append("caseName", form.title.trim()); // Mapping 'title' to 'caseName'
-      formData.append("department", "General"); // Or add a dept field to your form
+      formData.append("caseId", caseId);
+      formData.append("caseName", form.file.name);
+      formData.append("department", "General");
 
-      // 3. Call the API
-      // Note: your api.js uploadEvidence only takes 'formData' as an argument
       const response = await uploadEvidence(formData);
 
       if (response.success) {
-        // 4. Pass the new evidence back to the UI
-        onUpload(response.data); 
+        const ev = response.data;
+        const ext = ev.filename?.split('.').pop().toLowerCase();
+        let format = "Other";
+        if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) format = "Video";
+        else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) format = "Photo";
+        else if (['pdf', 'docx', 'doc', 'txt'].includes(ext)) format = "Text Document";
+        else if (['mp3', 'wav', 'm4a'].includes(ext)) format = "Voice Note";
+
+        onUpload({ ...ev, id: ev.evidenceId, format, isNew: true });
         onClose();
       } else {
         setError(response.error || "Upload failed");
@@ -102,43 +95,7 @@ export default function UploadEvidenceModal({ caseId, onClose, onUpload }) {
 
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="input-group">
-            <label>Evidence Title</label>
-            <input
-              type="text"
-              placeholder="e.g. Lobby CCTV Footage"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="input-group">
-            <label>Description</label>
-            <textarea
-              placeholder="Describe this piece of evidence..."
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="input-group">
-            <label>Format</label>
-            <select
-              value={form.format}
-              onChange={(e) => setForm((f) => ({ ...f, format: e.target.value }))}
-              disabled={loading}
-            >
-              {FORMATS.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="input-group">
-            <label>File Upload (optional)</label>
+            <label>Evidence File</label>
             <div className="file-input-wrapper">
               <input
                 type="file"

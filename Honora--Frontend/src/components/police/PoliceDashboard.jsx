@@ -36,12 +36,15 @@ export default function PoliceDashboard() {
     const uniqueCases = allEvidence.reduce((acc, current) => {
       const exists = acc.find(item => item.caseId === current.caseId);
       if (!exists) {
-        return acc.concat([current]);
+        return acc.concat([{
+          ...current,
+          status: current.status || "Under Investigation",
+        }]);
       }
       return acc;
     }, []);
 
-    setCases(uniqueCases); 
+    setCases(uniqueCases);
   } catch (err) {
     console.error("Error fetching cases:", err);
     setError(err.message || "Failed to load cases");
@@ -49,6 +52,12 @@ export default function PoliceDashboard() {
     setLoading(false);
   }
 };
+
+  const handleStatusChange = (caseId, newStatus) => {
+    setCases((prev) =>
+      prev.map((c) => (c.caseId === caseId ? { ...c, status: newStatus } : c))
+    );
+  };
 
   const handleCreateCase = async (formData) => {
     try {
@@ -92,7 +101,7 @@ export default function PoliceDashboard() {
         <h1 className="dashboard-title">Case Repository</h1>
         <p className="dashboard-meta">
           Welcome back,{" "}
-          <span style={{ color: "var(--gold)" }}>{user.username}</span>
+          <span style={{ color: "var(--gold)" }}>{user.name}</span>
           &nbsp;·&nbsp;{" "}
           {new Date().toLocaleDateString("en-US", {
             weekday: "long",
@@ -198,7 +207,7 @@ export default function PoliceDashboard() {
             </p>
           ) : (
             filteredCases.map((c, i) => (
-              <CaseCard key={c.id} caseData={c} delay={i * 0.07} />
+              <CaseCard key={c.id} caseData={c} delay={i * 0.07} onStatusChange={handleStatusChange} />
             ))
           )}
         </div>

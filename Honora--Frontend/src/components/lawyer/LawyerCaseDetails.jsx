@@ -144,11 +144,11 @@ export default function LawyerCaseDetails({ caseId, onBack }) {
         <h1 className="dash-title">{caseData.title}</h1>
         <div className="meta-grid">
           {[
-            ["Case ID", caseData.id],
-            ["Client", caseData.clientName || "N/A"],
-            ["Court", caseData.assignedCourt || "N/A"],
-            ["Court Date", caseData.courtDate || "N/A"],
-            ["Counsel", user?.username || "Unknown"],
+            ["Case ID", caseData.caseId],
+            ["Department", caseData.department || "General"],
+            ["Filed By", caseData.uploadedBy || "N/A"],
+            ["Filed On", caseData.timestamp ? new Date(caseData.timestamp * 1000).toLocaleDateString() : "N/A"],
+            ["Counsel", user?.name || "Unknown"],
           ].map(([l, v]) => (
             <div className="meta-item" key={l}>
               <span className="meta-label">{l}</span>
@@ -250,7 +250,7 @@ export default function LawyerCaseDetails({ caseId, onBack }) {
           caseId={caseId}
           onClose={() => setShowUploadModal(false)}
           onUpload={handleUpload}
-          lawyerName={user?.username || "Unknown Lawyer"}
+          lawyerName={user?.name || "Unknown Lawyer"}
         />
       )}
     </div>

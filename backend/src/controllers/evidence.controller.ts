@@ -181,6 +181,7 @@ export async function getEvidenceById(
         timestamp:     onChain.timestamp.toString(),
         currentHolder: onChain.currentHolder,
         ipfsUrl:       `https://gateway.pinata.cloud/ipfs/${onChain.ipfsCID}`,
+        status:        meta?.status ?? "Under Investigation",
       },
     });
   } catch (error) {
@@ -222,6 +223,70 @@ export async function getEvidenceHistory(
     });
   } catch (error) {
     console.error("[Evidence] History fetch failed:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Internal server error",
+    });
+  }
+}
+
+/**
+ * PATCH /api/evidence/:id/status
+ * Role: Police only
+ *
+ * Body: { status: "Open" | "Under Investigation" | "Closed" }
+ * Updates the status of ALL evidence items sharing the same caseId.
+ */
+export async function updateEvidenceStatus(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const evidenceId = parseInt(req.params.id, 10);
+    if (isNaN(evidenceId) || evidenceId <= 0) {
+      res.status(400).json({
+        success: false,
+        error: "evidenceId must be a positive integer",
+      });
+      return;
+    }
+
+    const { status } = req.body;
+    const validStatuses = ["Open", "Under Investigation", "Closed"];
+    if (!status || !validStatuses.includes(status)) {
+      res.status(400).json({
+        success: false,
+        error: `status must be one of: ${validStatuses.join(", ")}`,
+      });
+      return;
+    }
+
+    // Find the evidence to get its caseId
+    const evidence = await Evidence.findOne({ evidenceId });
+    if (!evidence) {
+      res.status(404).json({ success: false, error: "Evidence not found" });
+      return;
+    }
+
+    // Update ALL evidence items with the same caseId
+    const result = await Evidence.updateMany(
+      { caseId: evidence.caseId },
+      { $set: { status } }
+    );
+
+    console.log(`[Evidence] Status updated: caseId ${evidence.caseId} → ${status} (${result.modifiedCount} items)`);
+
+    res.status(200).json({
+      success: true,
+      message: `Status updated to "${status}" for case ${evidence.caseId}`,
+      data: {
+        caseId: evidence.caseId,
+        status,
+        updatedCount: result.modifiedCount,
+      },
+    });
+  } catch (error) {
+    console.error("[Evidence] Status update failed:", error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Internal server error",

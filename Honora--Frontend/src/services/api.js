@@ -94,6 +94,17 @@ export const createCase = (formData) => {
   return uploadEvidence(fd);
 };
 
+/**
+ * Update case status (Police only).
+ * PATCH /api/evidence/:id/status
+ * Body: { status: "Open" | "Under Investigation" | "Closed" }
+ */
+export const updateCaseStatus = (evidenceId, status) =>
+  request(`/evidence/${evidenceId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+
 // ============ CHAIN OF CUSTODY ============
 
 /**

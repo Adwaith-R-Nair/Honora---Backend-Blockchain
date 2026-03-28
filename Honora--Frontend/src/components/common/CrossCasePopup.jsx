@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "./useAuth";
 
 const WS_URL = "ws://localhost:8000/ws";
 
 export default function CrossCasePopup() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [alerts, setAlerts] = useState([]);
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
@@ -70,14 +72,28 @@ export default function CrossCasePopup() {
           </div>
           {alert.linkedCases?.length > 0 && (
             <div style={styles.linkedList}>
-              {alert.linkedCases.map((linked, i) => (
-                <div key={i} style={styles.linkedItem}>
-                  <span style={styles.linkedName}>{linked.caseName}</span>
-                  <span style={styles.linkedScore}>
-                    {((linked.similarityScore || 0) * 100).toFixed(0)}% similar
-                  </span>
-                </div>
-              ))}
+              {alert.linkedCases.map((linked, i) => {
+                const handleClick = () => {
+                  const role = (user?.role || "police").toLowerCase();
+                  const evId = linked.evidenceId || linked.id;
+                  if (evId) {
+                    dismissAlert(alert.id);
+                    navigate(`/dashboard/${role}/case/${evId}`);
+                  }
+                };
+                return (
+                  <div
+                    key={i}
+                    style={{ ...styles.linkedItem, cursor: linked.evidenceId ? 'pointer' : 'default' }}
+                    onClick={handleClick}
+                  >
+                    <span style={styles.linkedName}>{linked.caseName}</span>
+                    <span style={styles.linkedScore}>
+                      {((linked.similarityScore || 0) * 100).toFixed(0)}% similar
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

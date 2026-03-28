@@ -71,7 +71,7 @@ export default function ForensicDashboard({ onViewCase, onLogout }) {
         <h1 className="dashboard-title">Case Analysis Workbench</h1>
         <p className="dashboard-meta">
           Welcome back,{" "}
-          <span style={{ color: "var(--gold)" }}>{user ? user.username : "User"}</span>
+          <span style={{ color: "var(--gold)" }}>{user ? user.name : "User"}</span>
           &nbsp;·&nbsp;{" "}
           {new Date().toLocaleDateString("en-US", {
             weekday: "long",

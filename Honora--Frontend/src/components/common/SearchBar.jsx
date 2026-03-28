@@ -1,7 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { searchEvidence } from "../../services/api.js";
+import { useAuth } from "./useAuth.jsx";
 
 export default function SearchBar() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +36,15 @@ export default function SearchBar() {
     setResults([]);
     setQuery("");
     setError(null);
+  };
+
+  const handleNavigate = (r) => {
+    const role = (user?.role || "police").toLowerCase();
+    const evidenceId = r.evidenceId || r.id;
+    if (evidenceId) {
+      handleClose();
+      navigate(`/dashboard/${role}/case/${evidenceId}`);
+    }
   };
 
   return (
@@ -69,7 +82,13 @@ export default function SearchBar() {
 
             <div style={styles.resultsList}>
               {results.map((r, i) => (
-                <div key={i} style={styles.resultCard}>
+                <div
+                  key={i}
+                  style={styles.resultCard}
+                  onClick={() => handleNavigate(r)}
+                  role="button"
+                  tabIndex={0}
+                >
                   <div style={styles.resultHeader}>
                     <span style={styles.caseName}>{r.caseName || "Unknown Case"}</span>
                     <span style={styles.score}>
@@ -77,15 +96,31 @@ export default function SearchBar() {
                     </span>
                   </div>
                   <div style={styles.resultMeta}>
-                    <span>{r.evidenceName || r.filename || "—"}</span>
-                    {r.department && <span style={styles.dept}>{r.department}</span>}
-                    {r.docType && <span style={styles.docType}>{r.docType}</span>}
+                    <span>{r.evidenceName || r.payload?.evidenceName || r.payload?.filename || "—"}</span>
+                    {(r.department || r.payload?.department) && (
+                      <span style={styles.dept}>{r.department || r.payload?.department}</span>
+                    )}
+                    {(r.docType || r.payload?.docType) && (
+                      <span style={styles.docType}>{r.docType || r.payload?.docType}</span>
+                    )}
+                    {r.caseId && <span style={{ color: '#888' }}>Case #{r.caseId}</span>}
                   </div>
-                  {r.fileUrl && (
-                    <a href={r.fileUrl} target="_blank" rel="noopener noreferrer" style={styles.link}>
-                      View on IPFS
-                    </a>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                    <span style={{ fontSize: '11px', color: '#d4af37', cursor: 'pointer' }}>
+                      View Case →
+                    </span>
+                    {(r.fileUrl || r.payload?.fileUrl) && (
+                      <a
+                        href={r.fileUrl || r.payload?.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.link}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        IPFS ↗
+                      </a>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -185,6 +220,8 @@ const styles = {
     background: "rgba(255,255,255,0.04)",
     border: "1px solid rgba(212, 175, 55, 0.1)",
     borderRadius: "8px",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
   },
   resultHeader: {
     display: "flex",

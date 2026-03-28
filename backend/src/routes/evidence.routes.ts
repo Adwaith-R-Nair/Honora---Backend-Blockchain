@@ -7,6 +7,7 @@ import {
   getEvidenceById,
   getEvidenceHistory,
   getAllEvidence,
+  updateEvidenceStatus,
 } from "../controllers/evidence.controller.js";
 
 const router = Router();
@@ -28,5 +29,8 @@ router.get("/:id", authenticateJWT, getEvidenceById);
 
 // GET /api/evidence/:id/history — all authenticated users
 router.get("/:id/history", authenticateJWT, getEvidenceHistory);
+
+// PATCH /api/evidence/:id/status — Police only
+router.patch("/:id/status", authenticateJWT, requireRole("Police"), updateEvidenceStatus);
 
 export default router;
