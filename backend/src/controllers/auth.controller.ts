@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { registerUser, loginUser } from "../services/auth.service.js";
+import { User } from "../models/user.model.js";
 
 /**
  * POST /api/auth/register
@@ -94,5 +95,37 @@ export async function login(req: Request, res: Response): Promise<void> {
     const message = error instanceof Error ? error.message : "Login failed";
     const status = message.includes("Invalid") ? 401 : 500;
     res.status(status).json({ success: false, error: message });
+  }
+}
+
+/**
+ * GET /api/auth/me
+ *
+ * Returns the current authenticated user's profile.
+ * Requires valid JWT in Authorization header.
+ */
+export async function getMe(req: Request, res: Response): Promise<void> {
+  try {
+    const user = await User.findById(req.user?.userId).select("-passwordHash");
+    if (!user) {
+      res.status(404).json({ success: false, error: "User not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        walletAddress: user.walletAddress,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch user",
+    });
   }
 }

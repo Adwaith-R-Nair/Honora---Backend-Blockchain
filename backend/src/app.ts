@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { ENV } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -10,6 +11,10 @@ import seedRoutes from "./routes/seed.routes.js";
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+app.use(cors({
+  origin: ENV.CORS_ORIGINS,
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -43,12 +48,13 @@ app.listen(ENV.PORT, () => {
   console.log(`\nAvailable endpoints:`);
   console.log(`  POST http://localhost:${ENV.PORT}/api/auth/register`);
   console.log(`  POST http://localhost:${ENV.PORT}/api/auth/login`);
-  console.log(`  POST http://localhost:${ENV.PORT}/api/evidence/upload        [Police]`);
-  console.log(`  GET  http://localhost:${ENV.PORT}/api/evidence/:id           [All]`);
-  console.log(`  GET  http://localhost:${ENV.PORT}/api/evidence/:id/history   [All]`);
-  console.log(`  POST http://localhost:${ENV.PORT}/api/custody/transfer       [Police, Forensic]`);
-  console.log(`  POST http://localhost:${ENV.PORT}/api/supporting-docs/upload [Forensic, Lawyer]`);
-  console.log(`  GET  http://localhost:${ENV.PORT}/api/supporting-docs/:id    [All]`);
+  console.log(`  POST http://localhost:${ENV.PORT}/api/evidence/upload            [Police]`);
+  console.log(`  GET  http://localhost:${ENV.PORT}/api/evidence                   [All]`);
+  console.log(`  GET  http://localhost:${ENV.PORT}/api/evidence/:id               [All]`);
+  console.log(`  GET  http://localhost:${ENV.PORT}/api/evidence/:id/history       [All]`);
+  console.log(`  POST http://localhost:${ENV.PORT}/api/custody/transfer           [Police, Forensic]`);
+  console.log(`  POST http://localhost:${ENV.PORT}/api/supporting-docs/upload     [Forensic, Lawyer]`);
+  console.log(`  GET  http://localhost:${ENV.PORT}/api/supporting-docs/:id        [All]`);
   console.log(`  POST http://localhost:${ENV.PORT}/api/supporting-docs/verify/:id [Forensic, Judge]`);
 });
 

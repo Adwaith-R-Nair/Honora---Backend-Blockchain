@@ -1,0 +1,214 @@
+import "../../styles/forensic.css";
+import { useAuth } from "../common/useAuth.jsx";
+import { getCases } from "../../services/api.js";
+import ForensicCaseCard from "./ForensicCaseCard.jsx";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+export default function ForensicDashboard({ onViewCase, onLogout }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [cases, setCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/role");
+      return;
+    }
+    fetchCases();
+  }, [user, navigate]);
+
+  const fetchCases = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // Fetch cases - backend should filter by forensic analyst's assignment
+      const data = await getCases();
+      const allEvidence = data.data || [];
+      // Deduplicate by caseId and map to dashboard format
+      const uniqueCases = allEvidence.reduce((acc, cur) => {
+        if (!acc.find((c) => c.caseId === cur.caseId)) {
+          acc.push({
+            ...cur,
+            id: cur.evidenceId,
+            title: cur.caseName,
+            status: cur.status || "In Progress",
+            relatedCaseId: cur.caseId,
+            evidenceType: cur.filename,
+          });
+        }
+        return acc;
+      }, []);
+      setCases(uniqueCases);
+    } catch (err) {
+      console.error("Error fetching cases:", err);
+      setError(err.message || "Failed to load cases");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredCases = cases.filter(
+    (c) =>
+      c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.caseName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.department?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const inProgressCount = cases.filter((c) => c.status === "In Progress").length;
+  const pendingCount = cases.filter((c) => c.status === "Pending").length;
+  const completedCount = cases.filter((c) => c.status === "Completed").length;
+
+  return (
+    <main className="dashboard-page">
+      <div className="dashboard-header" style={{ position: "relative" }}>
+        <p className="dashboard-dept">
+          🔬 Forensic Department · Evidence Analysis Unit
+        </p>
+        <h1 className="dashboard-title">Case Analysis Workbench</h1>
+        <p className="dashboard-meta">
+          Welcome back,{" "}
+          <span style={{ color: "var(--gold)" }}>{user ? user.username : "User"}</span>
+          &nbsp;·&nbsp;{" "}
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </p>
+        <button
+          className="btn-logout"
+          onClick={onLogout}
+          style={{ position: "absolute", top: 16, right: 16 }}
+        >
+          ← Logout
+        </button>
+      </div>
+
+      <div className="dashboard-stats">
+        <div className="stat-chip">
+          <span className="stat-value">{cases.length}</span>
+          <span className="stat-label">Assigned Cases</span>
+        </div>
+        <div className="stat-chip">
+          <span className="stat-value" style={{ color: "#ffb74d" }}>
+            {inProgressCount}
+          </span>
+          <span className="stat-label">In Progress</span>
+        </div>
+        <div className="stat-chip">
+          <span className="stat-value" style={{ color: "#f0d060" }}>
+            {pendingCount}
+          </span>
+          <span className="stat-label">Pending</span>
+        </div>
+        <div className="stat-chip">
+          <span className="stat-value" style={{ color: "var(--success)" }}>
+            {completedCount}
+          </span>
+          <span className="stat-label">Completed</span>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 28 }} />
+
+      <div style={{ marginBottom: 36 }}>
+        <p
+          style={{
+            fontSize: "0.72rem",
+            letterSpacing: "0.3em",
+            color: "var(--gold)",
+            fontWeight: 600,
+            marginBottom: 10,
+            textTransform: "uppercase",
+          }}
+        >
+          FORENSIC CASE ASSIGNMENTS
+        </p>
+        <h2
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(1.3rem,3vw,2rem)",
+            color: "var(--text)",
+            fontWeight: 700,
+          }}
+        >
+          Analysis Workbench
+        </h2>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <input
+          type="text"
+          placeholder="Search cases..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "12px 16px",
+            border: "1px solid var(--border)",
+            borderRadius: "6px",
+            backgroundColor: "rgba(255,255,255,0.03)",
+            color: "var(--text)",
+            fontSize: "0.95rem",
+            fontFamily: "var(--font-body)",
+            outline: "none",
+            transition: "all 0.3s var(--ease)",
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = "var(--gold-dim)";
+            e.target.style.backgroundColor = "rgba(212,175,55,0.04)";
+            e.target.style.boxShadow = "0 0 0 3px rgba(212,175,55,0.08)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "var(--border)";
+            e.target.style.backgroundColor = "rgba(255,255,255,0.03)";
+            e.target.style.boxShadow = "none";
+          }}
+        />
+      </div>
+
+      {error && (
+        <div
+          style={{
+            padding: "12px 16px",
+            marginBottom: "20px",
+            backgroundColor: "rgba(255,0,0,0.1)",
+            border: "1px solid #ff6b6b",
+            borderRadius: "6px",
+            color: "#ff6b6b",
+            fontSize: "14px",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <p style={{ color: "var(--text-muted)" }}>Loading cases...</p>
+      ) : (
+        <div className="cases-grid">
+          {filteredCases.length === 0 ? (
+            <p style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "13px" }}>
+              {searchQuery
+                ? "No cases match your search."
+                : "No cases currently assigned to you."}
+            </p>
+          ) : (
+            filteredCases.map((c, i) => (
+              <ForensicCaseCard
+                key={c.id}
+                caseData={c}
+                delay={i * 0.07}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </main>
+  );
+}

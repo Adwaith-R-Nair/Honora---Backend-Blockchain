@@ -10,13 +10,16 @@ import {
   getSupportingDocCount,
 } from "../services/contract.service.js";
 import { SupportingDoc } from "../models/evidence.model.js";
+import { ENV } from "../config/env.js";
 
-// Private key map for role-based signing
-const ROLE_PRIVATE_KEYS: Record<string, string> = {
-  "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a", // Forensic
-  "0x90f79bf6eb2c4f870365e785982e1f101e93b906": "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6", // Lawyer
-  "0x15d34aaf54267db7d7c367839aaf71a00a2c6a65": "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926b", // Judge
-};
+function getSignerKeyForRole(role: string): string | undefined {
+  switch (role) {
+    case "Forensic": return ENV.FORENSIC_PRIVATE_KEY || undefined;
+    case "Lawyer":   return ENV.LAWYER_PRIVATE_KEY || undefined;
+    case "Judge":    return ENV.JUDGE_PRIVATE_KEY || undefined;
+    default:         return undefined;
+  }
+}
 
 /**
  * POST /api/supporting-docs/upload
@@ -76,13 +79,12 @@ export async function uploadSupportingDoc(
     const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCID}`;
     console.log(`[SupportingDoc] CID: ${ipfsCID}`);
 
-    // Step 4: Get signer private key
-    const walletAddress = req.user?.walletAddress.toLowerCase() ?? "";
-    const signerPrivateKey = ROLE_PRIVATE_KEYS[walletAddress];
+    // Step 4: Get signer private key based on user role
+    const signerPrivateKey = getSignerKeyForRole(req.user?.role ?? "");
     if (!signerPrivateKey) {
       res.status(403).json({
         success: false,
-        error: "No signing key found for your wallet address",
+        error: "No signing key configured for your role",
       });
       return;
     }
@@ -100,7 +102,7 @@ export async function uploadSupportingDoc(
 
     // ── Notify AI service for supporting doc indexing (non-blocking) ─────────
     try {
-      await fetch("http://localhost:8000/api/index-supporting", {
+      await fetch(`${ENV.AI_SERVICE_URL}/api/index-supporting`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -236,12 +238,11 @@ export async function verifyEvidenceIntegrity(
     const computedHash = generateFileHash(req.file.buffer);
     const passed = computedHash === evidence.fileHash;
 
-    const walletAddress = req.user?.walletAddress.toLowerCase() ?? "";
-    const signerPrivateKey = ROLE_PRIVATE_KEYS[walletAddress];
+    const signerPrivateKey = getSignerKeyForRole(req.user?.role ?? "");
     if (!signerPrivateKey) {
       res.status(403).json({
         success: false,
-        error: "No signing key found for your wallet address",
+        error: "No signing key configured for your role",
       });
       return;
     }

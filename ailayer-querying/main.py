@@ -1,6 +1,7 @@
 """
 Honora EMS – AI Layer
 FastAPI microservice: semantic search over vectorised PDF evidence.
+Now includes WebSocket support for real-time cross-case linkage notifications.
 """
 from __future__ import annotations
 
@@ -11,16 +12,16 @@ from typing import Any
 import httpx
 import jwt
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
+from cross_case import find_linked_cases
 from embeddings import embed_text
 from preprocessing import extract_full
 from search import semantic_search
 from vector_store import ensure_collection, upsert_evidence
-from cross_case import find_linked_cases
 
 load_dotenv()
 
@@ -29,9 +30,42 @@ JWT_SECRET: str = os.getenv("JWT_SECRET", "changeme")
 JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
 SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.85"))
 
-
-
 SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".doc"]
+
+
+# ── WebSocket Connection Manager ───────────────────────────────────────────
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        print(f"[WS] Client connected. Total: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        print(f"[WS] Client disconnected. Total: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.append(connection)
+        for conn in disconnected:
+            self.disconnect(conn)
+
+    async def send_to_one(self, websocket: WebSocket, message: dict):
+        try:
+            await websocket.send_json(message)
+        except Exception:
+            self.disconnect(websocket)
+
+
+manager = ConnectionManager()
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────
@@ -89,7 +123,6 @@ async def _index_single_file(
     payload: dict[str, Any],
     auth_headers: dict[str, str],
 ) -> dict[str, Any]:
-    """Download a file from IPFS, embed it, and upsert into Qdrant."""
     if not ipfs_url:
         return {"status": "skipped", "reason": "no file URL", "id": point_id}
     if not any(filename.lower().endswith(ext) for ext in SUPPORTED_EXTENSIONS):
@@ -111,7 +144,12 @@ async def _index_single_file(
     ]
 
     upsert_evidence(point_id, vector, payload)
-    return {"status": "indexed", "pointId": point_id, "filename": filename}
+    return {
+        "status": "indexed",
+        "pointId": point_id,
+        "filename": filename,
+        "combined_text": extraction.combined,
+    }
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────
@@ -124,14 +162,50 @@ class SearchRequest(BaseModel):
 class IndexRequest(BaseModel):
     evidenceId: str
 
+
 class CrossCaseRequest(BaseModel):
     evidenceId: str
     top_k: int = 10
 
+
+# ── WebSocket endpoint ─────────────────────────────────────────────────────
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time cross-case linkage notifications.
+    Frontend connects here and listens for CROSS_CASE_ALERT events.
+
+    Message format sent to frontend:
+    {
+        "type": "CROSS_CASE_ALERT",
+        "evidenceId": "3",
+        "sourceCaseName": "C.C. No. 234/2025 - Drug Trafficking, Fort Kochi",
+        "department": "narcotics",
+        "linkedCases": [...],
+        "totalLinked": 2,
+        "threshold": 0.85,
+        "message": "Cross-case linkage detected!..."
+    }
+    """
+    await manager.connect(websocket)
+    try:
+        await manager.send_to_one(websocket, {
+            "type": "CONNECTED",
+            "message": "Connected to Honora EMS AI service"
+        })
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
 # ── Routes ────────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "connectedClients": len(manager.active_connections)
+    }
 
 
 @app.post("/api/index")
@@ -142,6 +216,8 @@ async def index_evidence(
 ):
     """
     Fetch a police evidence file from the backend, embed and store in Qdrant.
+    After indexing, automatically checks for cross-case linkage and broadcasts
+    a WebSocket notification if similar cases are found.
     """
     evidence_id = body.evidenceId
     auth_headers = {"Authorization": f"Bearer {credentials.credentials}"}
@@ -158,14 +234,17 @@ async def index_evidence(
 
     ipfs_url = evidence_data.get("ipfsUrl", "")
     filename = evidence_data.get("filename", "")
+    case_id = str(evidence_data.get("caseId", ""))
+    case_name = evidence_data.get("caseName", "")
+    department = evidence_data.get("department", "")
 
     payload = {
         "docType": "police_evidence",
-        "caseId": evidence_data.get("caseId"),
-        "caseName": evidence_data.get("caseName"),
+        "caseId": case_id,
+        "caseName": case_name,
         "evidenceName": filename,
         "uploadTimestamp": evidence_data.get("timestamp"),
-        "department": evidence_data.get("department"),
+        "department": department,
         "uploader": evidence_data.get("uploadedBy"),
         "fileUrl": ipfs_url,
     }
@@ -178,6 +257,34 @@ async def index_evidence(
         auth_headers=auth_headers,
     )
     result["evidenceId"] = evidence_id
+
+    # ── Auto cross-case linkage check after indexing ───────────────────────
+    if result["status"] == "indexed" and result.get("combined_text"):
+        try:
+            linked = find_linked_cases(
+                query_text=result["combined_text"],
+                source_case_id=case_id,
+                source_evidence_id=evidence_id,
+                top_k=5,
+            )
+            if linked:
+                print(f"[CrossCase] Found {len(linked)} linked cases for evidenceId {evidence_id}")
+                await manager.broadcast({
+                    "type": "CROSS_CASE_ALERT",
+                    "evidenceId": evidence_id,
+                    "sourceCaseName": case_name,
+                    "department": department,
+                    "linkedCases": linked,
+                    "totalLinked": len(linked),
+                    "threshold": SIMILARITY_THRESHOLD,
+                    "message": f"Cross-case linkage detected! Evidence from '{case_name}' is similar to {len(linked)} other case(s)."
+                })
+            else:
+                print(f"[CrossCase] No linked cases found for evidenceId {evidence_id}")
+        except Exception as e:
+            print(f"[CrossCase] Check failed (non-critical): {e}")
+
+    result.pop("combined_text", None)
     return result
 
 
@@ -207,7 +314,6 @@ async def index_supporting_docs(
     if not docs:
         return {"status": "no_docs", "evidenceId": evidence_id, "indexed": []}
 
-    # First fetch police evidence metadata to get caseId/caseName/department
     async with httpx.AsyncClient() as client:
         ev_resp = await client.get(
             f"{EMS_BACKEND_URL}/api/evidence/{evidence_id}",
@@ -242,6 +348,7 @@ async def index_supporting_docs(
             payload=payload,
             auth_headers=auth_headers,
         )
+        result.pop("combined_text", None)
         results.append(result)
 
     indexed = [r for r in results if r["status"] == "indexed"]
@@ -269,6 +376,7 @@ async def search_evidence(
     )
     return {"results": results, "count": len(results)}
 
+
 @app.post("/api/cross-case-linkage")
 async def cross_case_linkage(
     body: CrossCaseRequest,
@@ -277,12 +385,11 @@ async def cross_case_linkage(
 ):
     """
     Find cases semantically similar to a given evidence item.
-    Returns cases with similarity score above SIMILARITY_THRESHOLD (default 0.85).
+    Returns cases with similarity score above SIMILARITY_THRESHOLD.
     """
     evidence_id = body.evidenceId
     auth_headers = {"Authorization": f"Bearer {credentials.credentials}"}
 
-    # Fetch the evidence metadata from backend
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{EMS_BACKEND_URL}/api/evidence/{evidence_id}",
@@ -296,7 +403,6 @@ async def cross_case_linkage(
             )
         evidence_data = resp.json().get("data", {})
 
-    # Fetch the actual file from IPFS to get its text
     ipfs_url = evidence_data.get("ipfsUrl", "")
     filename = evidence_data.get("filename", "")
     case_id = evidence_data.get("caseId", "")
@@ -310,7 +416,6 @@ async def cross_case_linkage(
             detail=f"File type not supported for cross-case linkage: {filename}"
         )
 
-    # Download and extract text
     async with httpx.AsyncClient() as client:
         file_resp = await client.get(ipfs_url, timeout=60)
         if file_resp.status_code != 200:
@@ -320,7 +425,6 @@ async def cross_case_linkage(
     extraction = extract_full(file_bytes, filename=filename)
     query_text = extraction.combined
 
-    # Find linked cases
     linked = find_linked_cases(
         query_text=query_text,
         source_case_id=str(case_id),
@@ -338,7 +442,8 @@ async def cross_case_linkage(
         "totalLinked":      len(linked),
     }
 
-# ── Entry point (python main.py) ──────────────────────────────────────────
+
+# ── Entry point ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)

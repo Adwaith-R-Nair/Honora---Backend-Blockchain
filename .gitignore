@@ -7,19 +7,18 @@ __pycache__/
 
 # Node Modules
 node_modules/
-backend/node_modules/
 
-
-# Environment Variables
+# Environment Variables (ALL .env files across the project)
 .env
+.env.*
 backend/.env
+ailayer-querying/.env
 
-
-# Hardhat Artifacts
+# Hardhat Artifacts & Cache
 artifacts/
 cache/
 typechain-types/
-
+.hardhat/
 
 # Build Output
 dist/
@@ -27,32 +26,33 @@ bundle/
 types/
 coverage/
 
-
 # Uploads / Temporary Files
 uploads/
 tmp/
 
-
-# OS Files  
+# OS Files
 .DS_Store
 Thumbs.db
 
-# Deployment info (contains contract address, deployer — regenerate locally)
+# Deployment info (regenerate locally with setup.ts)
 deployment.json
-
-# Hardhat cache and local network files
-cache/
-.hardhat/
-
-# TypeScript build output
-dist/
+deployment-sepolia.json
 
 # Logs
 *.log
 npm-debug.log*
 
-# VS Code
+# IDE / Editor
 .vscode/
+.idea/
 
-# Sepolia
-deployment-sepolia.json
+# Claude Code
+.claude/
+
+# Test data (large binary files — seed from local test-data/)
+# Uncomment the line below if you don't want test data in the repo:
+# test-data/
+
+# PRD documents
+Honora_EMS_PRD.docx.pdf
+Honora_EMS_PRD_extracted.txt

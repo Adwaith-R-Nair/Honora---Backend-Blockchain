@@ -9,6 +9,7 @@ import {
   getEvidenceCount,
 } from "../services/contract.service.js";
 import { Evidence } from "../models/evidence.model.js";
+import { ENV } from "../config/env.js";
 
 /**
  * POST /api/evidence/upload
@@ -99,7 +100,7 @@ export async function uploadEvidence(
 
     // ── Notify AI service for Qdrant indexing (non-blocking) ────────────────
     try {
-      await fetch("http://localhost:8000/api/index", {
+      await fetch(`${ENV.AI_SERVICE_URL}/api/index`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -221,6 +222,42 @@ export async function getEvidenceHistory(
     });
   } catch (error) {
     console.error("[Evidence] History fetch failed:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Internal server error",
+    });
+  }
+}
+
+/**
+ * GET /api/evidence
+ * Role: All authenticated users
+ * Returns all evidence metadata from MongoDB for the dashboard
+ */
+export async function getAllEvidence(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const page  = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+    const skip  = (page - 1) * limit;
+
+    const [allEvidence, total] = await Promise.all([
+      Evidence.find().sort({ timestamp: -1 }).skip(skip).limit(limit),
+      Evidence.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: allEvidence.length,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      data: allEvidence,
+    });
+  } catch (error) {
+    console.error("[Evidence] Fetch all failed:", error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Internal server error",

@@ -18,4 +18,13 @@ export const ENV = {
   JWT_SECRET: requireEnv("JWT_SECRET"),
   JWT_EXPIRES_IN: process.env["JWT_EXPIRES_IN"] ?? "24h",
   PORT: parseInt(process.env["PORT"] ?? "3000", 10),
+  AI_SERVICE_URL: process.env["AI_SERVICE_URL"] ?? "http://localhost:8000",
+  CORS_ORIGINS: process.env["CORS_ORIGINS"]?.split(",") ?? [
+    "http://localhost:5173",
+    "http://localhost:3001",
+  ],
+  // Role-specific private keys for on-chain signing (Hardhat test accounts)
+  FORENSIC_PRIVATE_KEY: process.env["FORENSIC_PRIVATE_KEY"] ?? "",
+  LAWYER_PRIVATE_KEY: process.env["LAWYER_PRIVATE_KEY"] ?? "",
+  JUDGE_PRIVATE_KEY: process.env["JUDGE_PRIVATE_KEY"] ?? "",
 };

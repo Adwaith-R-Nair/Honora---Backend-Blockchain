@@ -6,6 +6,7 @@ import {
   uploadEvidence,
   getEvidenceById,
   getEvidenceHistory,
+  getAllEvidence,
 } from "../controllers/evidence.controller.js";
 
 const router = Router();
@@ -18,6 +19,9 @@ router.post(
   handleUpload,
   uploadEvidence
 );
+
+// GET /api/evidence — all authenticated users (must be BEFORE /:id)
+router.get("/", authenticateJWT, getAllEvidence);
 
 // GET /api/evidence/:id — all authenticated users
 router.get("/:id", authenticateJWT, getEvidenceById);
