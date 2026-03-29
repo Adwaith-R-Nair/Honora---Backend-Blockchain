@@ -59,7 +59,7 @@ export default function JudgeDashboard({ onViewCase, onLogout }) {
     <div className="judge-dashboard">
       <div className="judge-topbar">
         <div>
-          <p className="judge-eyebrow">Judiciary Portal — EviChain</p>
+          <p className="judge-eyebrow">Judiciary Portal — HONORA</p>
           <h1 className="judge-title">Court Case Management</h1>
           <p className="judge-subtitle">
             {user ? user.name : "Active docket"}

@@ -1,5 +1,5 @@
 // assets/icons/Icons.jsx
-// SVG icon components used throughout EviChain.
+// SVG icon components used throughout Honora.
 
 export const ChainLinkIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

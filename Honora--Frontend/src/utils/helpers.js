@@ -10,12 +10,3 @@ export function getStatusBadgeClass(status) {
   };
   return map[status] || "badge-closed";
 }
-
-export function getTypeBadgeClass(clientType) {
-  return clientType === "Prosecution" ? "badge-prosecution" : "badge-defense";
-}
-
-export function capitalize(str) {
-  if (!str) return "";
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}

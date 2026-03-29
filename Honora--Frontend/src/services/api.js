@@ -5,7 +5,7 @@ const BASE_URL = "http://localhost:3000/api";
 const AI_BASE_URL = "http://localhost:8000";
 
 async function request(endpoint, options = {}, baseUrl = BASE_URL) {
-  const token = localStorage.getItem("evichain_token");
+  const token = localStorage.getItem("honora_token");
 
   const headers = {
     "Content-Type": "application/json",
@@ -51,8 +51,8 @@ export const getCurrentUser = () =>
 
 // Logout is client-side only (JWT is stateless)
 export const logout = () => {
-  localStorage.removeItem("evichain_token");
-  localStorage.removeItem("evichain_user");
+  localStorage.removeItem("honora_token");
+  localStorage.removeItem("honora_user");
   return Promise.resolve({ success: true });
 };
 
@@ -196,19 +196,19 @@ export const getAIHealth = () =>
 
 // ============ UTILITY ============
 
-export const getAuthToken = () => localStorage.getItem("evichain_token");
+export const getAuthToken = () => localStorage.getItem("honora_token");
 
 export const clearAuthToken = () => {
-  localStorage.removeItem("evichain_token");
-  localStorage.removeItem("evichain_user");
+  localStorage.removeItem("honora_token");
+  localStorage.removeItem("honora_user");
 };
 
 export const setAuthToken = (token, user) => {
-  localStorage.setItem("evichain_token", token);
-  localStorage.setItem("evichain_user", JSON.stringify(user));
+  localStorage.setItem("honora_token", token);
+  localStorage.setItem("honora_user", JSON.stringify(user));
 };
 
 export const getStoredUser = () => {
-  const user = localStorage.getItem("evichain_user");
+  const user = localStorage.getItem("honora_user");
   return user ? JSON.parse(user) : null;
 };

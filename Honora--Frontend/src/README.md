@@ -1,4 +1,4 @@
-# ⛓️ EviChain v2.0
+# ⛓️ HONORA v2.0
 **Secure Digital Evidence Management & Chain of Custody Tracking System**
 
 ---
@@ -6,7 +6,7 @@
 ## 📁 Folder Structure
 
 ```
-EviChain/
+Honora/
 ├── index.html
 ├── package.json
 ├── vite.config.js
@@ -55,7 +55,7 @@ EviChain/
 
 ```bash
 # 1. Navigate into the project
-cd EviChain
+cd Honora
 
 # 2. Install dependencies
 npm install
@@ -156,4 +156,4 @@ File previews use `URL.createObjectURL()` — no backend required.
 
 ---
 
-*EviChain v2.0 — Frontend prototype only. No backend, no real authentication, no data persistence.*
+*HONORA v2.0 — Blockchain-based Evidence Management System with full backend, JWT authentication, and on-chain data persistence.*

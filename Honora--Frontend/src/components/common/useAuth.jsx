@@ -11,8 +11,8 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize from localStorage on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem("evichain_token");
-    const storedUser = localStorage.getItem("evichain_user");
+    const storedToken = localStorage.getItem("honora_token");
+    const storedUser = localStorage.getItem("honora_user");
 
     if (storedToken && storedUser) {
       setToken(storedToken);
@@ -43,8 +43,8 @@ export const AuthProvider = ({ children }) => {
             setUser(loginData.user);
 
         // Store in localStorage
-        localStorage.setItem("evichain_token", loginData.token);
-        localStorage.setItem("evichain_user", JSON.stringify(loginData.user));
+        localStorage.setItem("honora_token", loginData.token);
+        localStorage.setItem("honora_user", JSON.stringify(loginData.user));
 
         return { success: true, user: loginData.user };
       } else {
@@ -78,8 +78,8 @@ export const AuthProvider = ({ children }) => {
         setUser(loginData.user);
 
         // Store in localStorage
-        localStorage.setItem("evichain_token", loginData.token);
-        localStorage.setItem("evichain_user", JSON.stringify(loginData.user));
+        localStorage.setItem("honora_token", loginData.token);
+        localStorage.setItem("honora_user", JSON.stringify(loginData.user));
 
         return { success: true, user: loginData.user };
       } else {
@@ -114,7 +114,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.getCurrentUser();
       if (response.user) {
         setUser(response.user);
-        localStorage.setItem("evichain_user", JSON.stringify(response.user));
+        localStorage.setItem("honora_user", JSON.stringify(response.user));
         return response.user;
       }
       return null;

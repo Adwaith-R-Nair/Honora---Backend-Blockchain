@@ -59,7 +59,7 @@ export default function LawyerDashboard({ onViewCase, onLogout }) {
     <div className="dashboard view">
       <div className="dash-topbar">
         <div>
-          <p className="dash-eyebrow">Lawyer Portal — EviChain</p>
+          <p className="dash-eyebrow">Lawyer Portal — HONORA</p>
           <h1 className="dash-title">Case Overview</h1>
           <p className="dash-subtitle">
             {user ? user.name : "Your active legal portfolio"}
