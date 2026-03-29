@@ -6,6 +6,7 @@ import {
   uploadSupportingDoc,
   getSupportingDocsByEvidence,
   verifyEvidenceIntegrity,
+  verifySupportingDocIntegrity,
 } from "../controllers/supportingDoc.controller.js";
 
 const router = Router();
@@ -33,6 +34,15 @@ router.post(
   requireRole("Forensic", "Judge"),
   handleUpload,
   verifyEvidenceIntegrity
+);
+
+// POST /api/supporting-docs/verify-doc/:docId — Forensic or Judge only
+router.post(
+  "/verify-doc/:docId",
+  authenticateJWT,
+  requireRole("Forensic", "Judge"),
+  handleUpload,
+  verifySupportingDocIntegrity
 );
 
 export default router;

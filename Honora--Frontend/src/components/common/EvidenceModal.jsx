@@ -2,10 +2,8 @@
 // Honora Blockchain + IPFS Integration + Chain of Custody + Integrity Verification
 
 import { useState, useEffect, useRef } from "react";
-import { getCustodyHistory, verifyIntegrity, transferCustody, getCrossCaseLinkage } from "../../services/api.js";
+import { getCustodyHistory, verifyIntegrity, verifyDocIntegrity, transferCustody, getCrossCaseLinkage } from "../../services/api.js";
 import { useAuth } from "./useAuth.jsx";
-
-const FORMAT_ICONS = { Video: "▶", Photo: "◉", "Text Document": "≡", "Voice Note": "♪" };
 
 function truncateAddress(addr) {
   if (!addr) return "N/A";
@@ -83,6 +81,9 @@ export default function EvidenceModal({ ev, caseId, onClose }) {
     }
   };
 
+  // Detect if this is a supporting doc (has docId) or original evidence
+  const isSupportingDoc = !!ev?.docId;
+
   const handleVerify = async () => {
     if (!verifyFile) {
       setVerifyError("Please select a file to verify.");
@@ -95,7 +96,12 @@ export default function EvidenceModal({ ev, caseId, onClose }) {
     try {
       const formData = new FormData();
       formData.append("file", verifyFile);
-      const res = await verifyIntegrity(ev.evidenceId, formData);
+
+      // Call the correct endpoint based on item type
+      const res = isSupportingDoc
+        ? await verifyDocIntegrity(ev.docId, formData)
+        : await verifyIntegrity(ev.evidenceId, formData);
+
       setVerifyResult(res.data || res);
     } catch (err) {
       console.error("Verification error:", err);
@@ -396,7 +402,7 @@ export default function EvidenceModal({ ev, caseId, onClose }) {
         )}
 
         {/* Integrity Verification Section — Forensic & Judge only */}
-        {canVerify && ev.evidenceId && (
+        {canVerify && (ev.evidenceId || ev.docId) && (
           <div style={{ margin: '8px 0' }}>
             <button
               onClick={() => setShowVerify(!showVerify)}
@@ -409,8 +415,10 @@ export default function EvidenceModal({ ev, caseId, onClose }) {
             {showVerify && (
               <div style={collapsibleBodyStyle}>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Upload the original evidence file to verify its SHA-256 hash matches the on-chain record.
-                  This confirms the file has not been tampered with.
+                  {isSupportingDoc
+                    ? "Upload the original supporting document to verify its SHA-256 hash matches the on-chain record."
+                    : "Upload the original evidence file to verify its SHA-256 hash matches the on-chain record."}
+                  {" "}This confirms the file has not been tampered with.
                 </p>
 
                 {/* File picker */}

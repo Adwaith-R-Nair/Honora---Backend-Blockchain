@@ -166,6 +166,17 @@ export const verifyIntegrity = (evidenceId, formData) =>
     body: formData,
   });
 
+/**
+ * Verify supporting document integrity (Forensic/Judge only).
+ * Upload the same file to recompute hash and compare with on-chain doc hash.
+ * FormData must contain: file
+ */
+export const verifyDocIntegrity = (docId, formData) =>
+  request(`/supporting-docs/verify-doc/${docId}`, {
+    method: "POST",
+    body: formData,
+  });
+
 // ============ AI SERVICE (port 8000) ============
 
 /**

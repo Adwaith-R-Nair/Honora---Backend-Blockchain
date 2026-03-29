@@ -3,16 +3,23 @@ import { useAuth } from "../common/useAuth.jsx";
 import { getCaseById, getForensicReports, getCases } from "../../services/api.js";
 import { GoldenDivider } from "../common/Shared.jsx";
 import EvidenceSection from "../common/EvidenceSection.jsx";
-import EvidenceModal from "../common/EvidenceModal.jsx";
 import ForensicReportUploadModal from "./ForensicReportUploadModal.jsx";
 import { ArrowLeftIcon, PlusIcon } from "../../assets/icons/Icons.jsx";
+
+const getFileFormat = (filename) => {
+  const ext = filename?.split('.').pop()?.toLowerCase();
+  if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return "Video";
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return "Photo";
+  if (['pdf', 'docx', 'doc', 'txt'].includes(ext)) return "Text Document";
+  if (['mp3', 'wav', 'm4a'].includes(ext)) return "Voice Note";
+  return "Other";
+};
 
 export default function ForensicCaseDetails({ caseId, onBack }) {
   const { user } = useAuth();
   const [caseData, setCaseData] = useState(null);
   const [caseEvidence, setCaseEvidence] = useState([]);
   const [forensicReports, setForensicReports] = useState([]);
-  const [viewingEvidence, setViewingEvidence] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,7 +58,7 @@ export default function ForensicCaseDetails({ caseId, onBack }) {
         (e) => String(e.caseId) === String(numericCaseId)
       );
       setCaseEvidence(
-        allEvidence.map((e) => ({ ...e, format: "Text Document", id: e.evidenceId }))
+        allEvidence.map((e) => ({ ...e, format: getFileFormat(e.filename), id: e.evidenceId }))
       );
 
       // Fetch forensic reports for ALL evidence items in this case
@@ -224,14 +231,6 @@ export default function ForensicCaseDetails({ caseId, onBack }) {
         <span className="fab-tooltip">Upload Forensic Report</span>
         <PlusIcon />
       </button>
-
-      {/* Evidence view modal */}
-      {viewingEvidence && (
-        <EvidenceModal
-          ev={viewingEvidence}
-          onClose={() => setViewingEvidence(null)}
-        />
-      )}
 
       {/* Upload modal */}
       {showUpload && (

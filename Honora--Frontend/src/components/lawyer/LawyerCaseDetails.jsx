@@ -5,6 +5,15 @@ import LawyerUploadModal from "./LawyerUploadModal.jsx";
 import { useState, useEffect } from "react";
 import { ArrowLeftIcon, PlusIcon } from "../../assets/icons/Icons.jsx";
 
+const getFileFormat = (filename) => {
+  const ext = filename?.split('.').pop()?.toLowerCase();
+  if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return "Video";
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return "Photo";
+  if (['pdf', 'docx', 'doc', 'txt'].includes(ext)) return "Text Document";
+  if (['mp3', 'wav', 'm4a'].includes(ext)) return "Voice Note";
+  return "Other";
+};
+
 export default function LawyerCaseDetails({ caseId, onBack }) {
   const { user } = useAuth();
   const [caseData, setCaseData] = useState(null);
@@ -41,7 +50,7 @@ export default function LawyerCaseDetails({ caseId, onBack }) {
         (e) => String(e.caseId) === String(numericCaseId)
       );
       setEvidence(
-        allEvidence.map((e) => ({ ...e, format: "Text Document", id: e.evidenceId }))
+        allEvidence.map((e) => ({ ...e, format: getFileFormat(e.filename), id: e.evidenceId }))
       );
 
       // Fetch supporting docs for ALL evidence items in this case

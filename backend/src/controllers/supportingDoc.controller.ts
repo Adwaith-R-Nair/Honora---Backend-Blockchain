@@ -214,6 +214,9 @@ export async function getSupportingDocsByEvidence(
 /**
  * POST /api/supporting-docs/verify/:evidenceId
  * Role: Forensic or Judge
+ *
+ * Verifies the integrity of an original evidence file by comparing
+ * its SHA-256 hash against the on-chain record.
  */
 export async function verifyEvidenceIntegrity(
   req: Request,
@@ -269,6 +272,101 @@ export async function verifyEvidenceIntegrity(
     });
   } catch (error) {
     console.error("[Integrity] Verification failed:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Internal server error",
+    });
+  }
+}
+
+/**
+ * POST /api/supporting-docs/verify-doc/:docId
+ * Role: Forensic or Judge
+ *
+ * Verifies the integrity of a supporting document by comparing
+ * its SHA-256 hash against the on-chain record for that specific doc.
+ */
+export async function verifySupportingDocIntegrity(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: "No file uploaded" });
+      return;
+    }
+
+    const docId = parseInt(req.params.docId, 10);
+    if (isNaN(docId) || docId <= 0) {
+      res.status(400).json({
+        success: false,
+        error: "docId must be a positive integer",
+      });
+      return;
+    }
+
+    // Find the supporting doc in MongoDB to get its parent evidenceId
+    const mongoDoc = await SupportingDoc.findOne({ docId });
+    if (!mongoDoc) {
+      res.status(404).json({
+        success: false,
+        error: `Supporting document with docId ${docId} not found`,
+      });
+      return;
+    }
+
+    const parentEvidenceId = mongoDoc.evidenceId;
+
+    // Fetch all on-chain supporting docs for the parent evidence
+    const onChainDocs = await getSupportingDocs(parentEvidenceId);
+    const onChainDoc = onChainDocs.find(
+      (d) => Number(d.docId) === docId
+    );
+
+    if (!onChainDoc) {
+      res.status(404).json({
+        success: false,
+        error: `Supporting document docId ${docId} not found on-chain`,
+      });
+      return;
+    }
+
+    const computedHash = generateFileHash(req.file.buffer);
+    const passed = computedHash === onChainDoc.fileHash;
+
+    // Record integrity check on-chain (against the parent evidence)
+    const signerPrivateKey = getSignerKeyForRole(req.user?.role ?? "");
+    if (!signerPrivateKey) {
+      res.status(403).json({
+        success: false,
+        error: "No signing key configured for your role",
+      });
+      return;
+    }
+
+    const txHash = await recordIntegrityCheck(parentEvidenceId, passed, signerPrivateKey);
+
+    console.log(
+      `[Integrity] docId ${docId} (evidenceId ${parentEvidenceId}) — ${passed ? "PASSED ✅" : "FAILED ❌"} — TX: ${txHash}`
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        docId,
+        evidenceId: parentEvidenceId,
+        passed,
+        computedHash,
+        onChainHash: onChainDoc.fileHash,
+        verifiedBy:  req.user?.walletAddress,
+        txHash,
+        message: passed
+          ? "Integrity verified — supporting document matches on-chain hash"
+          : "Integrity check FAILED — supporting document does not match on-chain hash",
+      },
+    });
+  } catch (error) {
+    console.error("[Integrity] Supporting doc verification failed:", error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Internal server error",
