@@ -1,18 +1,21 @@
-# 🔐 Honora : Blockchain-Based Evidence Management System
+# Honora : Blockchain-Based Evidence Management System
 
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636?logo=solidity)](https://soliditylang.org/)
 [![Hardhat](https://img.shields.io/badge/Hardhat-v3.1.10-yellow)](https://hardhat.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-v22-green?logo=node.js)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18.2-61DAFB?logo=react)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb)](https://www.mongodb.com/)
 [![IPFS](https://img.shields.io/badge/IPFS-Pinata-65C2CB)](https://pinata.cloud/)
+[![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-DC244C)](https://qdrant.tech/)
 [![Network](https://img.shields.io/badge/Network-Sepolia%20Testnet-blue)](https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee070be06B3C)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
-> A secure, tamper-proof evidence management system built on the Ethereum blockchain. Evidence files are stored on IPFS, metadata is anchored on-chain, and role-based access control ensures only authorized personnel can interact with the system.
+> A secure, tamper-proof evidence management system built on the Ethereum blockchain. Evidence files are stored on IPFS, metadata is anchored on-chain, and an AI-powered semantic search layer enables cross-case linkage detection. Role-based dashboards provide Police, Forensic, Lawyer, and Judge personnel with tailored interfaces for managing digital evidence.
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Architecture](#architecture)
@@ -39,6 +42,7 @@ Honora is a university mini-project that demonstrates how blockchain technology 
 - **Integrity** : SHA-256 file hashing detects any tampering with evidence files
 - **Access Control** : Role-based permissions ensure only authorized roles can perform specific actions
 - **Decentralized Storage** : Files are stored on IPFS via Pinata, not on a centralized server
+- **AI-Powered Search** : Semantic search and cross-case linkage detection using sentence-transformer embeddings
 
 ### Live Deployment
 
@@ -51,28 +55,30 @@ Honora is a university mini-project that demonstrates how blockchain technology 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Layer                            │
-│              React Frontend  +  FastAPI AI Service              │
-└─────────────────────────┬───────────────────────────────────────┘
-                          │ HTTP / REST
-┌─────────────────────────▼───────────────────────────────────────┐
-│                      Backend Layer                              │
-│         Node.js + Express + JWT Auth + Role Middleware          │
-│                      (localhost:3000)                           │
-└──────────┬──────────────────────────────┬───────────────────────┘
-           │ ethers.js v6                 │ Mongoose
-┌──────────▼──────────┐      ┌────────────▼────────────────────┐
-│   Blockchain Layer  │      │        Storage Layer             │
-│  Ethereum Hardhat   │      │  IPFS via Pinata (files)         │
-│  local / Sepolia    │      │  MongoDB Atlas (metadata/users)  │
-└─────────────────────┘      └─────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Client Layer                               │
+│            React + Vite Frontend (localhost:5173)                    │
+│   Police Dashboard │ Forensic Dashboard │ Lawyer │ Judge            │
+└──────────┬──────────────────────────────────┬───────────────────────┘
+           │ REST API                         │ REST + WebSocket
+┌──────────▼──────────────────┐   ┌───────────▼───────────────────────┐
+│       Backend Layer         │   │         AI Layer                   │
+│  Node.js + Express + JWT    │   │  FastAPI + sentence-transformers   │
+│     (localhost:3000)        │   │      (localhost:8000)              │
+└───┬──────────────┬──────────┘   └───────────────┬───────────────────┘
+    │ ethers.js v6 │ Mongoose                     │ qdrant-client
+┌───▼──────────┐ ┌─▼──────────────────────┐  ┌────▼────────────────────┐
+│  Blockchain  │ │    Storage Layer        │  │   Vector Database       │
+│  Ethereum    │ │  IPFS via Pinata (files)│  │   Qdrant Cloud          │
+│  Hardhat /   │ │  MongoDB Atlas (meta)   │  │   (384-dim embeddings)  │
+│  Sepolia     │ └────────────────────────-┘  └─────────────────────────┘
+└──────────────┘
 ```
 
 ### Evidence Upload Flow
 
 ```
-Police uploads file
+Police uploads file via React dashboard
         ↓
 Backend receives file (multer)
         ↓
@@ -81,6 +87,8 @@ Backend receives file (multer)
 3. Upload file to IPFS (Pinata) → get CID
 4. Register evidence on-chain → get TX hash
 5. Save enriched metadata to MongoDB
+6. Auto-index to Qdrant via AI service → semantic embeddings
+7. Cross-case linkage check → WebSocket alert if matches found
         ↓
 Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 ```
@@ -95,19 +103,23 @@ Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 | Blockchain Framework | Hardhat v3.1.10 |
 | Contract Interaction | ethers.js v6 |
 | Backend | Node.js v22 + Express |
-| Language | TypeScript (ESM) |
+| Language (Backend) | TypeScript (ESM) |
 | Authentication | JWT (HS256) + bcrypt (12 rounds) |
 | Database | MongoDB Atlas (Mongoose) |
 | File Storage | IPFS via Pinata |
 | File Hashing | SHA-256 |
-| AI Layer | FastAPI + Qdrant + Legal-BERT *(in development)* |
-| Frontend | React *(in development)* |
+| AI / NLP | FastAPI + sentence-transformers (`all-MiniLM-L6-v2`) |
+| Vector Database | Qdrant Cloud (384-dim, cosine distance) |
+| Document Processing | PyMuPDF (PDF) + python-docx (DOCX) |
+| Frontend | React 18.2 + Vite 5.0 + React Router 6 |
+| Styling | Custom CSS with design tokens, glassmorphism, particle effects |
+| Real-time | WebSocket (FastAPI) for cross-case linkage alerts |
 
 ---
 
 ## Features
 
-### ✅ Phase 1 : Core Evidence Management
+### Phase 1 : Core Evidence Management
 - Upload evidence files to IPFS with SHA-256 integrity hashing
 - Register evidence metadata on-chain (immutable)
 - Retrieve evidence by ID with full metadata
@@ -115,33 +127,45 @@ Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 - Full custody history recorded on-chain
 - Duplicate file detection via on-chain hash registry
 
-### ✅ Phase 2 : RBAC + Authentication
-- JWT-based authentication (register/login)
+### Phase 2 : RBAC + Authentication
+- JWT-based authentication (register / login / profile)
 - Role-based access control (Police, Forensic, Lawyer, Judge)
 - Upload supporting documents linked to evidence
 - Integrity verification : recompute SHA-256 and compare against on-chain hash
 - MongoDB user management with bcrypt password hashing
 - Role enforcement middleware returning clear 403 errors
 
-### ✅ Phase 3 : Metadata Enrichment
-- MongoDB evidence collection stores `caseName`, `department`, `filename`
+### Phase 3 : Metadata Enrichment
+- MongoDB evidence collection stores `caseName`, `department`, `filename`, `status`
 - Merged on-chain + off-chain data in single API response
 - Supporting document metadata stored in MongoDB
+- Case status management (Open / Under Investigation / Closed)
 
-### ✅ Phase 4 : Testnet Deployment
+### Phase 4 : Testnet Deployment
 - Contract deployed and verified on Ethereum Sepolia testnet
 - Publicly verifiable on Etherscan
 
-### 🔲 Phase 5 : AI Layer *(In Development)*
-- Semantic search across evidence using Legal-BERT embeddings
-- Cross-case linkage detection (similarity threshold: 0.85)
-- Qdrant vector database with RBAC-filtered search
-- FastAPI microservice running independently on port 8000
+### Phase 5 : AI Layer
+- **Semantic search** across all indexed evidence using `all-MiniLM-L6-v2` embeddings
+- **Multi-factor ranking** : semantic similarity (0.85) + recency (0.10) + metadata match (0.05)
+- **Cross-case linkage detection** with configurable similarity threshold (default: 0.85)
+- **Real-time WebSocket alerts** when new evidence matches existing cases
+- **Document preprocessing** : PDF table detection (PyMuPDF), DOCX parsing, text normalization
+- Qdrant Cloud vector database with 384-dimensional cosine distance
+- Auto-indexing of evidence and supporting documents on upload
 
-### 🔲 Phase 6 : Frontend *(In Development)*
-- React dashboard for all roles
-- Evidence upload, search, and verification UI
-- Custody history timeline visualization
+### Phase 6 : Frontend
+- **4 role-based dashboards** : Police, Forensic, Lawyer, Judge — each with tailored UI
+- **Evidence upload** : Police can upload files with case metadata; auto-registered on-chain
+- **Case management** : Search, filter, and browse cases with real-time status updates
+- **Chain of custody timeline** : Visual history of all custody transfers
+- **Integrity verification UI** : Forensic/Judge can upload files to verify against on-chain hash
+- **Custody transfer UI** : Police/Forensic can transfer evidence to new wallet holders
+- **AI semantic search** : Global search bar with ranked results and direct navigation
+- **Cross-case linkage popup** : Real-time WebSocket notifications for linked cases
+- **Supporting document management** : Forensic reports and lawyer filings per evidence item
+- **Dark theme** with gold accents, glassmorphism, and canvas particle background
+- **Protected routes** with JWT-based authentication and role guards
 
 ---
 
@@ -149,12 +173,15 @@ Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 
 | Action | Police | Forensic | Lawyer | Judge |
 |---|:---:|:---:|:---:|:---:|
-| Upload evidence | ✅ | ❌ | ❌ | ❌ |
-| Upload supporting docs | ❌ | ✅ | ✅ | ❌ |
-| View evidence | ✅ | ✅ | ✅ | ✅ |
-| Verify integrity | ❌ | ✅ | ❌ | ✅ |
-| Transfer custody | ✅ | ✅ | ❌ | ❌ |
-| Assign roles | ❌ | ❌ | ❌ | ❌ |
+| Upload evidence | yes | - | - | - |
+| Upload supporting docs | - | yes | yes | - |
+| View evidence | yes | yes | yes | yes |
+| Verify integrity | - | yes | - | yes |
+| Transfer custody | yes | yes | - | - |
+| Update case status | yes | - | - | - |
+| AI semantic search | yes | yes | yes | yes |
+| Cross-case linkage | yes | yes | yes | yes |
+| Assign roles | - | - | - | - |
 
 > Role assignment is restricted to the contract owner (deployer wallet) only.
 
@@ -183,13 +210,16 @@ Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 
 ## API Endpoints
 
+### Backend (Express — port 3000)
+
 All endpoints except `/api/auth/*` require `Authorization: Bearer <token>` header.
 
-### Authentication
+#### Authentication
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/auth/register` | Register a new user |
 | POST | `/api/auth/login` | Login and receive JWT token |
+| GET | `/api/auth/me` | Get current authenticated user profile |
 
 **Register body:**
 ```json
@@ -202,12 +232,26 @@ All endpoints except `/api/auth/*` require `Authorization: Bearer <token>` heade
 }
 ```
 
-### Evidence
+#### Evidence
 | Method | Endpoint | Role | Description |
 |---|---|---|---|
 | POST | `/api/evidence/upload` | Police | Upload file + register on-chain |
-| GET | `/api/evidence/:id` | All | Get evidence + metadata |
+| GET | `/api/evidence` | All | List all evidence (paginated) |
+| GET | `/api/evidence/:id` | All | Get evidence + merged metadata |
 | GET | `/api/evidence/:id/history` | All | Get custody history |
+| PATCH | `/api/evidence/:id/status` | Police | Update case status |
+
+#### Supporting Documents
+| Method | Endpoint | Role | Description |
+|---|---|---|---|
+| POST | `/api/supporting-docs/upload` | Forensic, Lawyer | Upload supporting document |
+| GET | `/api/supporting-docs/:evidenceId` | All | Get supporting docs for evidence |
+| POST | `/api/supporting-docs/verify/:evidenceId` | Forensic, Judge | Verify file integrity |
+
+#### Custody
+| Method | Endpoint | Role | Description |
+|---|---|---|---|
+| POST | `/api/custody/transfer` | Police, Forensic | Transfer custody |
 
 **Upload form-data fields:**
 
@@ -218,17 +262,32 @@ All endpoints except `/api/auth/*` require `Authorization: Bearer <token>` heade
 | `caseName` | Text | e.g. "State v. Richardson" |
 | `department` | Text | e.g. "financial-crimes" |
 
-### Supporting Documents
-| Method | Endpoint | Role | Description |
-|---|---|---|---|
-| POST | `/api/supporting-docs/upload` | Forensic, Lawyer | Upload supporting document |
-| GET | `/api/supporting-docs/:evidenceId` | All | Get supporting docs |
-| POST | `/api/supporting-docs/verify/:evidenceId` | Forensic, Judge | Verify file integrity |
+### AI Service (FastAPI — port 8000)
 
-### Custody
-| Method | Endpoint | Role | Description |
-|---|---|---|---|
-| POST | `/api/custody/transfer` | Police, Forensic | Transfer custody |
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Health check + connected WebSocket clients |
+| WS | `/ws` | WebSocket for real-time cross-case linkage alerts |
+| POST | `/api/index` | Index single evidence file to vector DB |
+| POST | `/api/index-supporting` | Index all supporting docs for an evidence |
+| POST | `/api/search` | Semantic search across all indexed evidence |
+| POST | `/api/cross-case-linkage` | Find semantically similar cases |
+
+**Search body:**
+```json
+{
+  "query": "drug trafficking evidence",
+  "top_k": 10
+}
+```
+
+**Cross-case linkage body:**
+```json
+{
+  "evidenceId": "1",
+  "top_k": 10
+}
+```
 
 ### Example Response : GET /api/evidence/:id
 ```json
@@ -245,6 +304,7 @@ All endpoints except `/api/auth/*` require `Authorization: Bearer <token>` heade
     "uploadedBy": "0x70997970...",
     "timestamp": "1773501720",
     "currentHolder": "0x70997970...",
+    "status": "Under Investigation",
     "ipfsUrl": "https://gateway.pinata.cloud/ipfs/bafkrei..."
   }
 }
@@ -255,31 +315,31 @@ All endpoints except `/api/auth/*` require `Authorization: Bearer <token>` heade
 ## Project Structure
 
 ```
-EMS Backend and Blockchain/
+Honora/
 ├── contracts/
-│   └── EvidenceRegistry.sol          # Main smart contract with RBAC
+│   └── EvidenceRegistry.sol              # Smart contract with RBAC
 ├── scripts/
-│   ├── setup.ts                      # One-command: deploy + assign all roles
-│   ├── deploy.ts                     # Local deployment only
-│   ├── deploy-sepolia.ts             # Sepolia testnet deployment
-│   └── assignRole.ts                 # Standalone role assignment
+│   ├── setup.ts                          # One-command: deploy + assign all roles
+│   ├── deploy.ts                         # Local deployment
+│   ├── deploy-sepolia.ts                 # Sepolia testnet deployment
+│   └── assignRole.ts                     # Standalone role assignment
 ├── backend/
 │   └── src/
 │       ├── config/
-│       │   ├── env.ts                # Environment variable loader
-│       │   └── db.ts                 # MongoDB connection
+│       │   ├── env.ts                    # Environment variable loader
+│       │   └── db.ts                     # MongoDB connection
 │       ├── models/
-│       │   ├── user.model.ts         # User schema (MongoDB)
-│       │   └── evidence.model.ts     # Evidence + SupportingDoc schemas
+│       │   ├── user.model.ts             # User schema (MongoDB)
+│       │   └── evidence.model.ts         # Evidence + SupportingDoc schemas
 │       ├── middleware/
-│       │   ├── auth.middleware.ts    # JWT verification
-│       │   ├── role.middleware.ts    # Role-based access control
-│       │   └── upload.middleware.ts  # Multer file upload handler
+│       │   ├── auth.middleware.ts         # JWT verification
+│       │   ├── role.middleware.ts         # Role-based access control
+│       │   └── upload.middleware.ts       # Multer file upload handler
 │       ├── services/
-│       │   ├── contract.service.ts   # All blockchain interactions
-│       │   ├── hash.service.ts       # SHA-256 file hashing
-│       │   ├── pinata.service.ts     # IPFS file upload via Pinata
-│       │   └── auth.service.ts       # Register/login business logic
+│       │   ├── contract.service.ts       # All blockchain interactions
+│       │   ├── hash.service.ts           # SHA-256 file hashing
+│       │   ├── pinata.service.ts         # IPFS file upload via Pinata
+│       │   └── auth.service.ts           # Register/login business logic
 │       ├── controllers/
 │       │   ├── auth.controller.ts
 │       │   ├── evidence.controller.ts
@@ -289,8 +349,72 @@ EMS Backend and Blockchain/
 │       │   ├── auth.routes.ts
 │       │   ├── evidence.routes.ts
 │       │   ├── custody.routes.ts
-│       │   └── supportingDoc.routes.ts
-│       └── app.ts                    # Express app entry point
+│       │   ├── supportingDoc.routes.ts
+│       │   └── seed.routes.ts
+│       ├── app.ts                        # Express app entry point
+│       └── seed.ts                       # Database seeder
+├── ailayer-querying/
+│   ├── main.py                           # FastAPI app with all AI endpoints
+│   ├── embeddings.py                     # Sentence-transformer model management
+│   ├── vector_store.py                   # Qdrant vector database client
+│   ├── search.py                         # Multi-factor semantic search
+│   ├── cross_case.py                     # Cross-case linkage detection
+│   ├── preprocessing.py                  # PDF/DOCX extraction & cleaning
+│   └── requirements.txt                  # Python dependencies
+├── Honora--Frontend/
+│   ├── src/
+│   │   ├── App.jsx                       # Root with Router + AuthProvider
+│   │   ├── components/
+│   │   │   ├── common/
+│   │   │   │   ├── useAuth.jsx           # Auth context (JWT + localStorage)
+│   │   │   │   ├── ProtectedRoute.jsx    # Role-based route guard
+│   │   │   │   ├── Navbar.jsx            # Top navigation bar
+│   │   │   │   ├── HomeSection.jsx       # Landing page hero
+│   │   │   │   ├── LoginModal.jsx        # Login form
+│   │   │   │   ├── RoleSelection.jsx     # Role picker
+│   │   │   │   ├── EvidenceModal.jsx     # Evidence viewer + blockchain actions
+│   │   │   │   ├── EvidenceSection.jsx   # Evidence list
+│   │   │   │   ├── EvidenceCard.jsx      # Evidence item card
+│   │   │   │   ├── SearchBar.jsx         # AI semantic search
+│   │   │   │   ├── CrossCasePopup.jsx    # WebSocket linkage alerts
+│   │   │   │   └── Shared.jsx            # ParticleField, GoldenDivider
+│   │   │   ├── police/
+│   │   │   │   ├── PoliceDashboard.jsx
+│   │   │   │   ├── CaseCard.jsx
+│   │   │   │   ├── CaseDetails.jsx
+│   │   │   │   ├── NewCaseModal.jsx
+│   │   │   │   └── UploadEvidenceModal.jsx
+│   │   │   ├── forensic/
+│   │   │   │   ├── ForensicDashboard.jsx
+│   │   │   │   ├── ForensicCaseCard.jsx
+│   │   │   │   ├── ForensicCaseDetails.jsx
+│   │   │   │   └── ForensicReportUploadModal.jsx
+│   │   │   ├── lawyer/
+│   │   │   │   ├── LawyerDashboard.jsx
+│   │   │   │   ├── LawyerCaseCard.jsx
+│   │   │   │   ├── LawyerCaseDetails.jsx
+│   │   │   │   └── LawyerUploadModal.jsx
+│   │   │   └── judge/
+│   │   │       ├── JudgeDashboard.jsx
+│   │   │       ├── JudgeCaseCard.jsx
+│   │   │       └── JudgeCaseDetails.jsx
+│   │   ├── services/
+│   │   │   └── api.js                    # API client (backend + AI service)
+│   │   ├── styles/
+│   │   │   ├── variables.css             # Design tokens
+│   │   │   ├── global.css                # Global styles
+│   │   │   ├── components.css            # Shared component styles
+│   │   │   ├── animations.css            # Keyframe animations
+│   │   │   ├── police.css
+│   │   │   ├── forensic.css
+│   │   │   ├── lawyer.css
+│   │   │   └── judge.css
+│   │   ├── assets/icons/
+│   │   │   └── Icons.jsx                 # SVG icon components
+│   │   └── utils/
+│   │       └── helpers.js                # Utility functions
+│   ├── package.json
+│   └── vite.config.js
 ├── hardhat.config.ts
 ├── package.json
 └── README.md
@@ -303,6 +427,7 @@ EMS Backend and Blockchain/
 ### Prerequisites
 
 - Node.js v22+
+- Python 3.10+
 - npm
 - Git
 
@@ -314,7 +439,7 @@ git clone https://github.com/Adwaith-R-Nair/Honora---Backend-Blockchain.git
 cd Honora---Backend-Blockchain
 ```
 
-**2. Install root dependencies**
+**2. Install root dependencies (Hardhat + contracts)**
 ```bash
 npm install
 ```
@@ -324,7 +449,17 @@ npm install
 cd backend && npm install && cd ..
 ```
 
-**4. Set up environment variables**
+**4. Install frontend dependencies**
+```bash
+cd Honora--Frontend && npm install && cd ..
+```
+
+**5. Install AI layer dependencies**
+```bash
+cd ailayer-querying && pip install -r requirements.txt && cd ..
+```
+
+**6. Set up environment variables**
 
 Create `backend/.env`:
 ```env
@@ -336,6 +471,18 @@ PORT=3000
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRES_IN=24h
+CORS_ORIGINS=http://localhost:5173
+```
+
+Create `ailayer-querying/.env`:
+```env
+EMS_BACKEND_URL=http://localhost:3000
+JWT_SECRET=your_jwt_secret_here
+QDRANT_URL=your_qdrant_cloud_url
+QDRANT_API_KEY=your_qdrant_api_key
+COLLECTION_NAME=evidence_vectors
+PORT=8000
+SIMILARITY_THRESHOLD=0.85
 ```
 
 Create root `.env` (for Sepolia deployment only):
@@ -344,33 +491,46 @@ SEPOLIA_RPC_URL=your_alchemy_sepolia_url
 SEPOLIA_PRIVATE_KEY=your_wallet_private_key
 ```
 
-**5. Compile the smart contract**
+**7. Compile the smart contract**
 ```bash
 npx hardhat compile
 ```
 
 ### Running Locally
 
-**Terminal 1 : Start Hardhat node:**
+You need 4 terminals:
+
+**Terminal 1 — Hardhat node:**
 ```bash
 npx hardhat node
 ```
 
-**Terminal 2 : Deploy contract + assign roles (one command):**
+**Terminal 2 — Deploy contract + assign roles:**
 ```bash
 npx hardhat run scripts/setup.ts --network localhost
 ```
 Copy the `CONTRACT_ADDRESS` from the output and paste it into `backend/.env`.
 
-**Terminal 3 : Start backend:**
+**Terminal 3 — Backend server:**
 ```bash
 cd backend
 npm run dev
 ```
-
 Backend runs at `http://localhost:3000`
 
-Health check: `http://localhost:3000/health`
+**Terminal 4 — AI service:**
+```bash
+cd ailayer-querying
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+AI service runs at `http://localhost:8000`
+
+**Terminal 5 — Frontend dev server:**
+```bash
+cd Honora--Frontend
+npm run dev
+```
+Frontend runs at `http://localhost:5173`
 
 ---
 
@@ -403,8 +563,11 @@ Etherscan: https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee
 - **Local blockchain resets** every time `npx hardhat node` restarts : all on-chain data is wiped
 - Run `setup.ts` after every node restart to redeploy and reassign roles
 - **MongoDB and IPFS data persists** across node restarts : only blockchain state is lost
+- The seed route (`DELETE /api/seed/clear`) can clear MongoDB evidence data for a fresh start during development
 - Never commit `.env` files to GitHub : they are gitignored
 - The `PRIVATE_KEY` in `backend/.env` for local dev is Hardhat Account #1 (deterministic test wallet, not real)
+- The AI service requires a running Qdrant instance (cloud or local) for vector storage
+- The `JWT_SECRET` must match between the backend and AI service for token validation
 
 ---
 
@@ -412,13 +575,13 @@ Etherscan: https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee
 
 | Phase | Feature | Status |
 |---|---|---|
-| 1 | Smart contract + IPFS + Backend API | ✅ Complete |
-| 2 | RBAC + JWT Auth + MongoDB + Supporting Docs | ✅ Complete |
-| 3 | MongoDB metadata enrichment (caseName, department) | ✅ Complete |
-| 4 | Sepolia testnet deployment | ✅ Complete |
-| 5 | AI Layer : semantic search + cross-case linkage | 🔲 In Development |
-| 6 | React Frontend : dashboard for all roles | 🔲 In Development |
-| 7 | Final documentation + submission | 🔲 Pending |
+| 1 | Smart contract + IPFS + Backend API | Complete |
+| 2 | RBAC + JWT Auth + MongoDB + Supporting Docs | Complete |
+| 3 | MongoDB metadata enrichment (caseName, department, status) | Complete |
+| 4 | Sepolia testnet deployment | Complete |
+| 5 | AI Layer : semantic search + cross-case linkage + WebSocket alerts | Complete |
+| 6 | React Frontend : role-based dashboards with full blockchain integration | Complete |
+| 7 | Final documentation + submission | In Progress |
 
 ---
 
@@ -427,7 +590,7 @@ Etherscan: https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee
 | Name | Responsibility |
 |---|---|
 | Adwaith R Nair | Blockchain + Backend |
-| Diya | AI Layer (FastAPI + Qdrant + Legal-BERT) |
+| Diya | AI Layer (FastAPI + Qdrant + sentence-transformers) |
 | Abhi | Frontend (React) |
 | Meghna | Frontend (React) |
 
