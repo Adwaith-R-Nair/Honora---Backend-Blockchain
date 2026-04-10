@@ -4,8 +4,12 @@ import { Evidence, SupportingDoc } from "../models/evidence.model.js";
 const router = Router();
 
 // DELETE /api/seed/clear — clears evidence + supportingdocs for reseeding
-// Only available in development
+// Only available in development (NODE_ENV !== "production")
 router.delete("/clear", async (_req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ success: false, error: "Route not found" });
+    return;
+  }
   try {
     await Evidence.deleteMany({});
     await SupportingDoc.deleteMany({});

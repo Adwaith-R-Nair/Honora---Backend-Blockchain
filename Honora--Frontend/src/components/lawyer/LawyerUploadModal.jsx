@@ -67,8 +67,14 @@ export default function LawyerUploadModal({ caseId, onClose, onUpload, lawyerNam
       formData.append("docType", form.format.toLowerCase().replace(/ /g, "_"));
 
       const response = await uploadLawyerDocument(formData);
+      const doc = response.data || response;
 
-      onUpload(response);
+      onUpload({
+        ...doc,
+        id: doc.docId,
+        format: doc.docType,
+        filename: doc.filename,
+      });
       setLoading(false);
       onClose();
     } catch (err) {

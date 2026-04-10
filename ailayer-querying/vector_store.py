@@ -55,7 +55,7 @@ def upsert_evidence(
             qmodels.PointStruct(
                 id=point_id,
                 vector=vector,
-                payload={**payload, "evidence_id": evidence_id},
+                payload={**{"evidence_id": evidence_id}, **payload},
             )
         ],
     )

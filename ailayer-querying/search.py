@@ -23,7 +23,6 @@ W_RECENCY = 0.10
 W_METADATA = 0.05
 
 SEMANTIC_THRESHOLD = float(os.getenv("SEMANTIC_THRESHOLD", "0.0"))
-NOW = time.time()
 MAX_AGE_SECONDS = 60 * 60 * 24 * 365  # 1 year baseline for recency decay
 
 
@@ -31,7 +30,7 @@ def _recency_score(upload_timestamp: float | str | None) -> float:
     if not upload_timestamp:
         return 0.5
     try:
-        age = max(0.0, NOW - float(upload_timestamp))
+        age = max(0.0, time.time() - float(upload_timestamp))
         return max(0.0, 1.0 - age / MAX_AGE_SECONDS)
     except (TypeError, ValueError):
         return 0.5
@@ -123,6 +122,18 @@ def semantic_search(
             }
         )
 
-    # Sort by composite, then filter by semantic threshold
+    # Sort by composite score descending
     ranked.sort(key=lambda x: x["compositeScore"], reverse=True)
-    return [r for r in ranked[:top_k] if r["semanticScore"] >= SEMANTIC_THRESHOLD]
+
+    # Deduplicate: chunking stores multiple vectors per document — keep only
+    # the highest-scoring chunk per evidence (first hit after sort = best chunk)
+    seen_ids: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for r in ranked:
+        eid = str(r.get("evidenceId", ""))
+        if eid in seen_ids:
+            continue
+        seen_ids.add(eid)
+        deduped.append(r)
+
+    return [r for r in deduped[:top_k] if r["semanticScore"] >= SEMANTIC_THRESHOLD]

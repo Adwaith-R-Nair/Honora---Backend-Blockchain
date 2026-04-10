@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from cross_case import find_linked_cases
 from embeddings import embed_text
-from preprocessing import extract_full
+from preprocessing import chunk_text, extract_full
 from search import semantic_search
 from vector_store import ensure_collection, upsert_evidence
 
@@ -28,7 +28,7 @@ load_dotenv()
 EMS_BACKEND_URL: str = os.getenv("EMS_BACKEND_URL", "http://localhost:3000")
 JWT_SECRET: str = os.getenv("JWT_SECRET", "changeme")
 JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.85"))
+SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.72"))
 
 SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".doc"]
 
@@ -135,19 +135,29 @@ async def _index_single_file(
         file_bytes = resp.content
 
     extraction = extract_full(file_bytes, filename=filename)
-    vector = embed_text(extraction.combined)
+
+    chunks = chunk_text(extraction.combined)
+    if not chunks:
+        chunks = [extraction.combined] if extraction.combined.strip() else []
+    if not chunks:
+        return {"status": "skipped", "reason": "no text extracted", "id": point_id}
 
     payload["tableCount"] = len(extraction.tables)
     payload["tableSummary"] = [
         {"page": t.page + 1, "headers": t.headers, "rowCount": len(t.rows)}
         for t in extraction.tables
     ]
+    payload["totalChunks"] = len(chunks)
 
-    upsert_evidence(point_id, vector, payload)
+    for i, chunk in enumerate(chunks):
+        chunk_point_id = f"{point_id}-chunk-{i}" if len(chunks) > 1 else point_id
+        upsert_evidence(chunk_point_id, embed_text(chunk), {**payload, "chunkIndex": i})
+
     return {
         "status": "indexed",
         "pointId": point_id,
         "filename": filename,
+        "chunksIndexed": len(chunks),
         "combined_text": extraction.combined,
     }
 
@@ -239,6 +249,7 @@ async def index_evidence(
     department = evidence_data.get("department", "")
 
     payload = {
+        "evidence_id": evidence_id,
         "docType": "police_evidence",
         "caseId": case_id,
         "caseName": case_name,
@@ -329,16 +340,17 @@ async def index_supporting_docs(
         ipfs_url = doc.get("ipfsUrl", "")
 
         payload = {
-            "docType": doc.get("docType", "supporting_doc"),
-            "docId": doc_id,
+            "evidence_id":     f"doc-{doc_id}",
+            "docType":         doc.get("docType", "supporting_doc"),
+            "docId":           doc_id,
             "linkedEvidenceId": evidence_id,
-            "caseId": evidence_data.get("caseId") or doc.get("caseId"),
-            "caseName": evidence_data.get("caseName"),
-            "evidenceName": filename,
+            "caseId":          evidence_data.get("caseId") or doc.get("caseId"),
+            "caseName":        evidence_data.get("caseName"),
+            "evidenceName":    filename,
             "uploadTimestamp": doc.get("timestamp"),
-            "department": evidence_data.get("department"),
-            "uploader": doc.get("uploadedBy"),
-            "fileUrl": ipfs_url,
+            "department":      evidence_data.get("department"),
+            "uploader":        doc.get("uploadedBy"),
+            "fileUrl":         ipfs_url,
         }
 
         result = await _index_single_file(

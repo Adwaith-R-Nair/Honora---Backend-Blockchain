@@ -43,7 +43,7 @@ export async function transferEvidenceCustody(
       `[Custody] ${req.user?.role} (${req.user?.walletAddress}) transferring evidenceId ${parsedId} to ${newHolder}`
     );
 
-    const txHash = await transferCustody(parsedId, newHolder);
+    const txHash = await transferCustody(parsedId, newHolder, req.user?.role ?? "Police");
     console.log(`[Custody] TX: ${txHash}`);
 
     res.status(200).json({

@@ -15,7 +15,7 @@ from vector_store import search_similar
 
 load_dotenv()
 
-SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.85"))
+SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.72"))
 MAX_RESULTS = int(os.getenv("CROSS_CASE_MAX_RESULTS", "10"))
 
 
@@ -40,11 +40,14 @@ def find_linked_cases(
     )
 
     linked: list[dict[str, Any]] = []
+    seen_cases: set[str] = set()
 
     for hit in raw_results:
         payload = hit.payload or {}
         hit_case_id = str(payload.get("caseId", ""))
-        hit_evidence_id = str(payload.get("evidence_id", hit.id))
+        hit_evidence_id = str(
+            payload.get("linkedEvidenceId") or payload.get("evidence_id") or hit.id
+        )
 
         # Exclude the source evidence itself
         if hit_evidence_id == str(source_evidence_id):
@@ -54,16 +57,23 @@ def find_linked_cases(
         if hit_case_id == str(source_case_id):
             continue
 
+        # Chunking stores multiple vectors per document — keep only the
+        # highest-scoring chunk per case (results are sorted by score desc,
+        # so first hit for each case_id is already the best match)
+        if hit_case_id in seen_cases:
+            continue
+        seen_cases.add(hit_case_id)
+
         linked.append({
-            "evidenceId":    hit_evidence_id,
-            "caseId":        hit_case_id,
-            "caseName":      payload.get("caseName"),
-            "department":    payload.get("department"),
-            "evidenceName":  payload.get("evidenceName"),
+            "evidenceId":      hit_evidence_id,
+            "caseId":          hit_case_id,
+            "caseName":        payload.get("caseName"),
+            "department":      payload.get("department"),
+            "evidenceName":    payload.get("evidenceName"),
             "similarityScore": round(hit.score, 4),
-            "docType":       payload.get("docType"),
-            "fileUrl":       payload.get("fileUrl"),
-            "uploader":      payload.get("uploader"),
+            "docType":         payload.get("docType"),
+            "fileUrl":         payload.get("fileUrl"),
+            "uploader":        payload.get("uploader"),
             "uploadTimestamp": payload.get("uploadTimestamp"),
         })
 
@@ -92,16 +102,22 @@ def find_linked_cases_by_vector(
     )
 
     linked: list[dict[str, Any]] = []
+    seen_cases: set[str] = set()
 
     for hit in raw_results:
         payload = hit.payload or {}
         hit_case_id = str(payload.get("caseId", ""))
-        hit_evidence_id = str(payload.get("evidence_id", hit.id))
+        hit_evidence_id = str(
+            payload.get("linkedEvidenceId") or payload.get("evidence_id") or hit.id
+        )
 
         if hit_evidence_id == str(source_evidence_id):
             continue
         if hit_case_id == str(source_case_id):
             continue
+        if hit_case_id in seen_cases:
+            continue
+        seen_cases.add(hit_case_id)
 
         linked.append({
             "evidenceId":      hit_evidence_id,

@@ -120,12 +120,28 @@ export async function addSupportingDoc(
 /**
  * Transfers custody of evidence to a new holder
  * (Police or Forensic only — enforced by contract).
+ * Uses the role-specific signer so msg.sender matches the currentHolder on-chain.
  */
 export async function transferCustody(
   evidenceId: number,
-  newHolder: string
+  newHolder: string,
+  callerRole: string
 ): Promise<string> {
-  const tx = await contract.transferCustody(evidenceId, newHolder);
+  let signerWallet: string;
+  if (callerRole === "Forensic" && ENV.FORENSIC_PRIVATE_KEY) {
+    signerWallet = ENV.FORENSIC_PRIVATE_KEY;
+  } else {
+    signerWallet = ENV.PRIVATE_KEY; // default: Police
+  }
+
+  const roleSigner = new ethers.Wallet(signerWallet, provider);
+  const roleContract = new ethers.Contract(
+    ENV.CONTRACT_ADDRESS,
+    artifact.abi,
+    roleSigner
+  );
+
+  const tx = await roleContract.transferCustody(evidenceId, newHolder);
   const receipt = await tx.wait();
   if (!receipt || receipt.status !== 1) {
     throw new Error("transferCustody transaction failed on-chain");

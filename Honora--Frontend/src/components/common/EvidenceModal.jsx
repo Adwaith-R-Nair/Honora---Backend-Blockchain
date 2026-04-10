@@ -304,8 +304,8 @@ export default function EvidenceModal({ ev, caseId, onClose }) {
           )}
         </div>
 
-        {/* Cross-Case Linkage Section — All roles */}
-        {ev.evidenceId && (
+        {/* Cross-Case Linkage Section — All roles, supported doc types only */}
+        {ev.evidenceId && ['pdf','docx','doc'].some(ext => ev.filename?.toLowerCase().endsWith(ext)) && (
           <div style={{ margin: '8px 0' }}>
             <button
               onClick={() => setShowLinkage(!showLinkage)}

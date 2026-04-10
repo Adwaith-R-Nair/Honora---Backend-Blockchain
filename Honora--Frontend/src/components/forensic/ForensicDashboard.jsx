@@ -58,9 +58,9 @@ export default function ForensicDashboard({ onViewCase, onLogout }) {
       c.department?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const inProgressCount = cases.filter((c) => c.status === "In Progress").length;
-  const pendingCount = cases.filter((c) => c.status === "Pending").length;
-  const completedCount = cases.filter((c) => c.status === "Completed").length;
+  const inProgressCount = cases.filter((c) => c.status === "Under Investigation").length;
+  const pendingCount = cases.filter((c) => c.status === "Open").length;
+  const completedCount = cases.filter((c) => c.status === "Closed").length;
 
   return (
     <main className="dashboard-page">

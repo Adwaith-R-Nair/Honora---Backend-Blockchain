@@ -246,7 +246,8 @@ All endpoints except `/api/auth/*` require `Authorization: Bearer <token>` heade
 |---|---|---|---|
 | POST | `/api/supporting-docs/upload` | Forensic, Lawyer | Upload supporting document |
 | GET | `/api/supporting-docs/:evidenceId` | All | Get supporting docs for evidence |
-| POST | `/api/supporting-docs/verify/:evidenceId` | Forensic, Judge | Verify file integrity |
+| POST | `/api/supporting-docs/verify/:evidenceId` | Forensic, Judge | Verify primary evidence integrity |
+| POST | `/api/supporting-docs/verify-doc/:docId` | Forensic, Judge | Verify supporting document integrity |
 
 #### Custody
 | Method | Endpoint | Role | Description |
@@ -472,6 +473,12 @@ MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRES_IN=24h
 CORS_ORIGINS=http://localhost:5173
+
+# Role-specific signing keys — REQUIRED for Forensic, Lawyer, and Judge on-chain actions
+# These are Hardhat deterministic test accounts (safe for local dev only — never use real keys here)
+FORENSIC_PRIVATE_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+LAWYER_PRIVATE_KEY=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+JUDGE_PRIVATE_KEY=0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926b
 ```
 
 Create `ailayer-querying/.env`:

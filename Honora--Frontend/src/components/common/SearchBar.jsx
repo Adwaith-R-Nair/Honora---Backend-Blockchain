@@ -40,7 +40,8 @@ export default function SearchBar() {
 
   const handleNavigate = (r) => {
     const role = (user?.role || "police").toLowerCase();
-    const evidenceId = r.evidenceId || r.id;
+    // Supporting docs have evidenceId = "doc-{n}" — use linkedEvidenceId (parent) instead
+    const evidenceId = r.payload?.linkedEvidenceId || r.evidenceId || r.id;
     if (evidenceId) {
       handleClose();
       navigate(`/dashboard/${role}/case/${evidenceId}`);
