@@ -148,7 +148,7 @@ Return: evidenceId, ipfsCID, fileHash, txHash, ipfsUrl
 ### Phase 5 : AI Layer
 - **Semantic search** across all indexed evidence using `all-MiniLM-L6-v2` embeddings
 - **Multi-factor ranking** : semantic similarity (0.85) + recency (0.10) + metadata match (0.05)
-- **Cross-case linkage detection** with configurable similarity threshold (default: 0.85)
+- **Cross-case linkage detection** with configurable similarity threshold (default: 0.72)
 - **Real-time WebSocket alerts** when new evidence matches existing cases
 - **Document preprocessing** : PDF table detection (PyMuPDF), DOCX parsing, text normalization
 - Qdrant Cloud vector database with 384-dimensional cosine distance
@@ -363,8 +363,9 @@ Honora/
 │   ├── preprocessing.py                  # PDF/DOCX extraction & cleaning
 │   └── requirements.txt                  # Python dependencies
 ├── Honora--Frontend/
+│   ├── App.jsx                           # Root with Router + AuthProvider
+│   ├── main.jsx                          # React entry point
 │   ├── src/
-│   │   ├── App.jsx                       # Root with Router + AuthProvider
 │   │   ├── components/
 │   │   │   ├── common/
 │   │   │   │   ├── useAuth.jsx           # Auth context (JWT + localStorage)
@@ -436,8 +437,8 @@ Honora/
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/Adwaith-R-Nair/Honora---Backend-Blockchain.git
-cd Honora---Backend-Blockchain
+git clone https://github.com/Adwaith-R-Nair/Honora.git
+cd Honora
 ```
 
 **2. Install root dependencies (Hardhat + contracts)**
@@ -478,18 +479,21 @@ CORS_ORIGINS=http://localhost:5173
 # These are Hardhat deterministic test accounts (safe for local dev only — never use real keys here)
 FORENSIC_PRIVATE_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
 LAWYER_PRIVATE_KEY=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
-JUDGE_PRIVATE_KEY=0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926b
+JUDGE_PRIVATE_KEY=0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
 ```
 
 Create `ailayer-querying/.env`:
 ```env
 EMS_BACKEND_URL=http://localhost:3000
 JWT_SECRET=your_jwt_secret_here
+JWT_ALGORITHM=HS256
 QDRANT_URL=your_qdrant_cloud_url
 QDRANT_API_KEY=your_qdrant_api_key
 COLLECTION_NAME=evidence_vectors
 PORT=8000
-SIMILARITY_THRESHOLD=0.85
+SIMILARITY_THRESHOLD=0.72
+SEMANTIC_THRESHOLD=0.0
+CROSS_CASE_MAX_RESULTS=10
 ```
 
 Create root `.env` (for Sepolia deployment only):
@@ -588,7 +592,7 @@ Etherscan: https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee
 | 4 | Sepolia testnet deployment | Complete |
 | 5 | AI Layer : semantic search + cross-case linkage + WebSocket alerts | Complete |
 | 6 | React Frontend : role-based dashboards with full blockchain integration | Complete |
-| 7 | Final documentation + submission | In Progress |
+| 7 | Final documentation + submission | Complete |
 
 ---
 
@@ -597,7 +601,7 @@ Etherscan: https://sepolia.etherscan.io/address/0xf4e1c0179acC2A54C195e8687621ee
 | Name | Responsibility |
 |---|---|
 | Adwaith R Nair | Blockchain + Backend |
-| Diya | AI Layer (FastAPI + Qdrant + sentence-transformers) |
+| Diya | AI Layer [NLP Querying] (FastAPI + Qdrant + sentence-transformers) + Documentation |
 | Abhi | Frontend (React) |
 | Meghna | Frontend (React) |
 
